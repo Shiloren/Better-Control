@@ -129,18 +129,12 @@ end
 function Factory.UpdateRowSemantics(row, item)
 	if not item then return end
 	
-	-- P0: Always use item quality color for names
-	local qualityColor = C_Item and C_Item.GetItemQualityColor and C_Item.GetItemQualityColor(item.quality or 1) 
-		or ITEM_QUALITY_COLORS[item.quality or 1]
-	
-	if qualityColor then
-		row.name:SetTextColor(qualityColor.r, qualityColor.g, qualityColor.b)
-	else
-		row.name:SetTextColor(1, 1, 1) -- Fallback to white if quality unknown
-	end
+	-- Quality Color Resolution (Runtime Safe)
+	local r, g, b = ns.Compat.GetItemQualityColor(item.quality)
+	row.name:SetTextColor(r, g, b)
 
-	-- P0: Consumables must use a secondary visual cue (icon border color)
-	if item.isConsumable then
+	-- Consumable Detection (Unified Helper)
+	if ns.Compat.IsConsumable(item) then
 		row.iconBorder:SetBackdropBorderColor(unpack(tokens.colors.consumable))
 		row.iconBorder:SetBackdropColor(0, 0.1, 0.15, 0.95)
 	else

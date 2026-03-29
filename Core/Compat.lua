@@ -150,7 +150,58 @@ function Compat.BuybackItem(index)
 	end
 end
 
--- 3. Otras utilidades
+-- 3. Visual Semantics Helpers
+function Compat.GetItemQualityColor(quality)
+	local q = quality or 1
+	-- Try C_Item first (Retail)
+	if C_Item and C_Item.GetItemQualityColor then
+		local color = C_Item.GetItemQualityColor(q)
+		if color then
+			if color.GetRGB then
+				return color:GetRGB()
+			elseif color.r then
+				return color.r, color.g, color.b
+			end
+		end
+	end
+	-- Fallback to global table
+	local color = ITEM_QUALITY_COLORS[q]
+	if color then
+		return color.r, color.g, color.b
+	end
+	-- Ultimate fallback (White)
+	return 1, 1, 1
+end
+
+function Compat.IsConsumable(itemInfo)
+	if not itemInfo then return false end
+	
+	-- 1. Check if classID is already provided in table
+	if type(itemInfo) == "table" and itemInfo.classID == Enum.ItemClass.Consumable then
+		return true
+	end
+
+	-- 2. Check if it's already marked isConsumable
+	if type(itemInfo) == "table" and itemInfo.isConsumable then
+		return true
+	end
+
+	-- 3. Resolve from link/ID
+	local identifier = type(itemInfo) == "table" and (itemInfo.itemLink or itemInfo.itemID) or itemInfo
+	if identifier then
+		local _, _, _, _, _, _, _, _, _, _, _, classID = GetItemInfo(identifier)
+		-- If GetItemInfo failed (not cached), try Instant if available
+		if not classID and C_Item and C_Item.GetItemInfoInstant then
+			local infoInstant = C_Item.GetItemInfoInstant(identifier)
+			classID = infoInstant and infoInstant.classID
+		end
+		return classID == Enum.ItemClass.Consumable
+	end
+
+	return false
+end
+
+-- 4. Otras utilidades
 if not GetMoneyString then
 	_G.GetMoneyString = function(amount, separateThousands)
 		return GetCoinTextureString(amount)

@@ -185,7 +185,7 @@ function Utils.BuildVendorItem(index)
 		stock = info.numAvailable or -1,
 		availableQuantity = info.numAvailable and info.numAvailable > -1 and info.numAvailable * unitSize or math.huge,
 		extendedCosts = info.hasExtendedCost and Utils.BuildExtendedCosts(index) or {},
-		isConsumable = classID == ITEM_CLASS_CONSUMABLE,
+		isConsumable = ns.Compat.IsConsumable(itemLink or itemID),
 		isReagent = classID == ITEM_CLASS_TRADEGOODS or itemSubType == (REAGENTS or "Reagents"),
 		isPurchasable = info.isPurchasable ~= false,
 		isUsable = info.isUsable ~= false,

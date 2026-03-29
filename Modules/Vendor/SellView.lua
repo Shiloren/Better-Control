@@ -128,7 +128,7 @@ function SellView:BuildItems()
 								name = itemName or info.hyperlink,
 								icon = info.iconFileID or texture,
 								quality = quality,
-								isConsumable = classID == Enum.ItemClass.Consumable,
+								isConsumable = ns.Compat.IsConsumable(info.hyperlink),
 								isJunk = quality == Enum.ItemQuality.Poor,
 								sellPrice = sellPrice,
 							}

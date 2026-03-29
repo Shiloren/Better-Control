@@ -100,7 +100,7 @@ function BuybackView:BuildItems()
 				price = info.price or 0,
 				quantity = info.quantity or 1,
 				isUsable = info.isUsable ~= false,
-				isConsumable = classID == Enum.ItemClass.Consumable,
+				isConsumable = ns.Compat.IsConsumable(itemLink or info.name),
 				quality = quality or info.quality,
 				itemLink = itemLink,
 			}
