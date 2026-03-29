@@ -18,14 +18,38 @@ function Compat.GetNumItems()
 end
 
 function Compat.GetItemInfo(index)
+	local result
 	if C_MerchantFrame and C_MerchantFrame.GetItemInfo then
-		local result = C_MerchantFrame.GetItemInfo(index)
-		if result then
-			return result.name, result.texture, result.price, result.stackCount, result.numAvailable, result.isUsable, result.hasExtendedCost
+		result = C_MerchantFrame.GetItemInfo(index)
+		if type(result) == "table" then
+			if not Compat.modeLogged then
+				ns.Debug("API Mode: C_MerchantFrame (Table)")
+				Compat.modeLogged = true
+			end
+			return result
 		end
-	elseif GetMerchantItemInfo then
-		return GetMerchantItemInfo(index)
 	end
+
+	-- Fallback: If result exists but isn't a table, it likely returned multiple values 
+	-- and we only captured the first one. We re-fetch with legacy global to be safe.
+	local name, texture, price, stackCount, numAvailable, isPurchasable, isUsable, hasExtendedCost = (GetMerchantItemInfo(index))
+	if not name then return nil end
+	
+	if not Compat.modeLogged then
+		ns.Debug("API Mode: Legacy Globals (Multi-return)")
+		Compat.modeLogged = true
+	end
+
+	return {
+		name = name,
+		texture = texture,
+		price = price,
+		stackCount = stackCount,
+		numAvailable = numAvailable,
+		isPurchasable = isPurchasable,
+		isUsable = isUsable,
+		hasExtendedCost = hasExtendedCost
+	}
 end
 
 function Compat.GetItemLink(index)
@@ -93,10 +117,20 @@ function Compat.GetBuybackItemInfo(index)
 	if C_MerchantFrame and C_MerchantFrame.GetBuybackItemInfo then
 		local result = C_MerchantFrame.GetBuybackItemInfo(index)
 		if result then
-			return result.name, result.texture, result.price, result.quantity, result.numAvailable, result.isUsable
+			return result
 		end
 	elseif GetBuybackItemInfo then
-		return GetBuybackItemInfo(index)
+		local name, texture, price, quantity, numAvailable, isUsable, isBound = GetBuybackItemInfo(index)
+		if not name then return nil end
+		return {
+			name = name,
+			texture = texture,
+			price = price,
+			quantity = quantity,
+			numAvailable = numAvailable,
+			isUsable = isUsable,
+			isBound = isBound
+		}
 	end
 end
 

@@ -58,6 +58,23 @@ function ns.RegisterModule(name, module)
 	ns.modules[name] = module
 end
 
+function ns.Debug(msg)
+	if not ns.DB then return end
+	if not ns.DB.debugLog then ns.DB.debugLog = {} end
+	
+	table.insert(ns.DB.debugLog, {
+		time = GetTime(),
+		msg = msg
+	})
+	
+	-- Keep only last 100 entries
+	if #ns.DB.debugLog > 100 then
+		table.remove(ns.DB.debugLog, 1)
+	end
+	
+	print("|cff00ccff[BC]|r " .. msg)
+end
+
 function BetterControl_HandleBinding(action)
 	if ns and ns.BindingDispatcher then
 		ns.BindingDispatcher(action)

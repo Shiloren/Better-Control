@@ -107,17 +107,26 @@ function Controller:CreateFrame()
 	frame.Tabs = {}
 	for tabIndex, tabId in ipairs(TAB_ORDER) do
 		local tab = Factory.CreateTab(frame, tabIndex, TAB_LABELS[tabId], string.format("%sTab%d", frame:GetName(), tabIndex))
-		if tabIndex == 1 then
-			tab:SetPoint("BOTTOMLEFT", frame.Inset, "TOPLEFT", 6, 2)
-		else
-			tab:SetPoint("LEFT", frame.tabsById[TAB_ORDER[tabIndex - 1]], "RIGHT", -4, 0)
-		end
 		tab.tabId = tabId
 		tab:SetScript("OnClick", function(selfTab)
 			self:SetTab(selfTab.tabId)
 		end)
 		frame.Tabs[tabIndex] = tab
 		frame.tabsById[tabId] = tab
+	end
+
+	-- Secondary loop for positioning (requires tabsById to be populated)
+	for tabIndex, tabId in ipairs(TAB_ORDER) do
+		local tab = frame.tabsById[tabId]
+		if tabIndex == 1 then
+			tab:SetPoint("BOTTOMLEFT", frame.Inset, "TOPLEFT", 6, 2)
+		else
+			local prevTabId = TAB_ORDER[tabIndex - 1]
+			local prevTab = frame.tabsById[prevTabId]
+			if prevTab then
+				tab:SetPoint("LEFT", prevTab, "RIGHT", -4, 0)
+			end
+		end
 	end
 	frame.numTabs = #TAB_ORDER
 
@@ -140,6 +149,17 @@ function Controller:CreateFrame()
 		frame.hints[index] = hint
 		previousHint = hint
 	end
+
+	frame.toggleBlizz = Factory.CreateButton(frame, "Blizzard UI", 100, 20)
+	frame.toggleBlizz:SetPoint("TOPRIGHT", frame.CloseButton, "TOPLEFT", -8, 0)
+	frame.toggleBlizz:SetScript("OnClick", function()
+		ns.Debug("Switching to Blizzard UI. Use /bcv to return.")
+		self.frame:Hide()
+		self:ReleaseMerchantFrame()
+		if MerchantFrame then
+			MerchantFrame:SetAlpha(1)
+		end
+	end)
 
 	self.views = {}
 
@@ -262,16 +282,37 @@ function Controller:RefreshAll()
 end
 
 function Controller:RefreshActiveView()
-	if self.activeTab == "buy" then
-		self.views.buy.catalog:Refresh()
-		self.views.buy.flow:Refresh()
-	elseif self.activeTab == "sell" then
-		self.views.sell:Refresh()
-	elseif self.activeTab == "buyback" then
-		self.views.buyback:Refresh()
-	elseif self.activeTab == "repair" then
-		self.views.repair:Refresh()
-	end
+	xpcall(function()
+		if not self.views then
+			ns.Debug("Warning: RefreshActiveView called but self.views is nil")
+			return
+		end
+		
+		local view = self.views[self.activeTab]
+		if not view then
+			ns.Debug("Warning: No view for tab: " .. tostring(self.activeTab))
+			return
+		end
+
+		if self.activeTab == "buy" then
+			if view.catalog and view.catalog.Refresh then
+				view.catalog:Refresh()
+			else
+				ns.Debug("Warning: buy.catalog is missing in RefreshActiveView")
+			end
+			
+			if view.flow and view.flow.Refresh then
+				view.flow:Refresh()
+			end
+		elseif view.Refresh then
+			view:Refresh()
+		else
+			ns.Debug("Warning: View for " .. tostring(self.activeTab) .. " has no Refresh function")
+		end
+	end, function(err)
+		ns.Debug("Error refreshing view: " .. tostring(err))
+		ns.Debug(debugstack(2, 4, 1))
+	end)
 end
 
 function Controller:AdoptMerchantFrame()
@@ -360,7 +401,8 @@ function Controller:OnEvent(event, ...)
 			return
 		end
 
-		ns.JobScheduler:Schedule(0, function()
+		ns.Debug("Event: MERCHANT_SHOW. Initializing UI...")
+		ns.JobScheduler:Schedule(0.1, function()
 			xpcall(function()
 				self:AdoptMerchantFrame()
 				self.frame:Show()

@@ -60,17 +60,17 @@ function Utils.GetRawStock(item)
 		return -1
 	end
 
-	local _, _, _, stackCount, numAvailable = ns.Compat.GetItemInfo(item.index)
-	if numAvailable == nil then
+	local info = ns.Compat.GetItemInfo(item.index)
+	if not info or info.numAvailable == nil then
 		return -1
 	end
 
-	if numAvailable < 0 then
+	if info.numAvailable < 0 then
 		return -1
 	end
 
-	stackCount = math.max(1, stackCount or item.unitSize or 1)
-	return numAvailable * stackCount
+	local stackCount = math.max(1, info.stackCount or item.unitSize or 1)
+	return info.numAvailable * stackCount
 end
 
 function Utils.GetAffordableQuantity(item)
@@ -161,34 +161,33 @@ function Utils.DescribeCosts(item, quantity)
 end
 
 function Utils.BuildVendorItem(index)
-	local name, texture, price, stackCount, numAvailable, isUsable, extendedCost = ns.Compat.GetItemInfo(index)
-	if not name then
+	local info = ns.Compat.GetItemInfo(index)
+	if not info or not info.name then
 		return nil
 	end
 
 	local itemLink = ns.Compat.GetItemLink(index)
 	local itemID = itemLink and tonumber(itemLink:match("item:(%d+)"))
 	local _, itemType, itemSubType, _, instantIcon, classID = getItemInfoInstant(itemLink or itemID)
-	local info = ns.Compat.GetItemInfo(index)
 	local quality = itemLink and select(3, GetItemInfo(itemLink))
-	local unitSize = math.max(1, stackCount or 1)
+	local unitSize = math.max(1, info.stackCount or 1)
 
 	return {
 		index = index,
 		itemID = itemID,
 		itemLink = itemLink,
-		name = name,
-		icon = texture or instantIcon,
-		price = price or 0,
+		name = info.name,
+		icon = info.texture or instantIcon,
+		price = info.price or 0,
 		unitSize = unitSize,
 		maxPerRequest = ns.Compat.GetItemMaxStack(index) or unitSize,
-		stock = numAvailable or -1,
-		availableQuantity = numAvailable and numAvailable > -1 and numAvailable * unitSize or math.huge,
-		extendedCosts = extendedCost and Utils.BuildExtendedCosts(index) or {},
+		stock = info.numAvailable or -1,
+		availableQuantity = info.numAvailable and info.numAvailable > -1 and info.numAvailable * unitSize or math.huge,
+		extendedCosts = info.hasExtendedCost and Utils.BuildExtendedCosts(index) or {},
 		isConsumable = classID == ITEM_CLASS_CONSUMABLE,
 		isReagent = classID == ITEM_CLASS_TRADEGOODS or itemSubType == (REAGENTS or "Reagents"),
-		isPurchasable = info == nil or info.isPurchasable ~= false,
-		isUsable = isUsable ~= false,
+		isPurchasable = info.isPurchasable ~= false,
+		isUsable = info.isUsable ~= false,
 		isRefundable = C_MerchantFrame and C_MerchantFrame.IsMerchantItemRefundable and C_MerchantFrame.IsMerchantItemRefundable(index),
 		itemType = itemType,
 		itemSubType = itemSubType,

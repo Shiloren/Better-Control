@@ -83,15 +83,15 @@ function BuybackView:BuildItems()
 	local items = {}
 	local total = ns.Compat.GetNumBuybackItems()
 	for index = 1, total do
-		local name, texture, price, quantity, _, isUsable = ns.Compat.GetBuybackItemInfo(index)
-		if name then
+		local info = ns.Compat.GetBuybackItemInfo(index)
+		if info and info.name then
 			items[#items + 1] = {
 				index = index,
-				name = name,
-				icon = texture,
-				price = price or 0,
-				quantity = quantity or 1,
-				isUsable = isUsable ~= false,
+				name = info.name,
+				icon = info.texture,
+				price = info.price or 0,
+				quantity = info.quantity or 1,
+				isUsable = info.isUsable ~= false,
 				link = ns.Compat.GetBuybackItemLink(index),
 			}
 		end

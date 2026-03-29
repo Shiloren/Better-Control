@@ -110,6 +110,7 @@ function CatalogView:New(parent, owner)
 		frame:HandleAction(delta < 0 and "down" or "up")
 	end)
 
+	ns.Debug("CatalogView:New initialized successfully")
 	return frame
 end
 
@@ -125,14 +126,22 @@ end
 
 function CatalogView:Refresh()
 	local selectedIndex = self:GetSelectedItem() and self:GetSelectedItem().index
-	local items = {}
 	local total = ns.Compat.GetNumItems()
+	ns.Debug(string.format("Catalog Refresh: Found %d items in API.", total))
+
+	local items = {}
+	local buildCount = 0
 	for index = 1, total do
 		local item = Utils.BuildVendorItem(index)
-		if item and filterItem(self.filter, item) then
-			items[#items + 1] = item
+		if item then
+			buildCount = buildCount + 1
+			if filterItem(self.filter, item) then
+				items[#items + 1] = item
+			end
 		end
 	end
+
+	ns.Debug(string.format("Catalog Results: %d built, %d passed filter (%s).", buildCount, #items, self.filter))
 
 	self.items = items
 	self.focus:SetItems(items)
