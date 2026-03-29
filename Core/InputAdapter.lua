@@ -168,6 +168,10 @@ function InputAdapter:Attach(frame, callback)
 	end
 
 	frame:SetScript("OnKeyDown", function(_, key)
+		if GetFocusedEditBox and GetFocusedEditBox() then
+			return
+		end
+
 		InputAdapter:SetMode("mouse")
 		local action = InputAdapter:NormalizeButton(key)
 		if action then
@@ -176,6 +180,10 @@ function InputAdapter:Attach(frame, callback)
 	end)
 
 	frame:SetScript("OnGamePadButtonDown", function(_, button)
+		if GetFocusedEditBox and GetFocusedEditBox() then
+			return
+		end
+
 		InputAdapter:SetMode("xbox")
 		local action = InputAdapter:NormalizeButton(button)
 		if action then

@@ -49,12 +49,17 @@ function Controller:OnEvent(event, ...)
 end
 
 function Controller:ShowWindow()
+	ns.Debug("ShowWindow: Requesting display")
 	if not self.frame then
 		self:CreateFrame()
 	end
 
-	self.frame:Show()
-	self:AdoptMerchantFrame()
+	if self.frame then
+		self.frame:Show()
+		self:AdoptMerchantFrame()
+	else
+		ns.Debug("ERROR: Could not show window (frame is nil)")
+	end
 end
 
 function Controller:AdoptMerchantFrame()
@@ -76,6 +81,11 @@ function Controller:OnPlayerLogin()
 	ns.InputAdapter:DetectInitialMode()
 	self.purchaseQueue = ns.PurchaseQueueMixin:New(self)
 	self:CreateFrame()
+
+	ns.Addon:RegisterRuntimeEvent("MERCHANT_SHOW")
+	ns.Addon:RegisterRuntimeEvent("MERCHANT_CLOSED")
+	ns.Addon:RegisterRuntimeEvent("MERCHANT_UPDATE")
+	ns.Addon:RegisterRuntimeEvent("BAG_UPDATE_DELAYED")
 end
 
 function Controller:CreateFrame()
@@ -193,6 +203,7 @@ function Controller:CreateFrame()
 	end
 
 	self:SetTab(ns.DB.vendor.rememberTab or "buy")
+	ns.Debug("CreateFrame: Complete")
 end
 
 function Controller:SetTab(tabId)

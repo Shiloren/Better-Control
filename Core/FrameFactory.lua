@@ -6,7 +6,12 @@ ns.FrameFactory = Factory
 local tokens = ns.SkinTokens
 
 local function setColor(texture, color)
-	texture:SetColorTexture(color[1], color[2], color[3], color[4] or 1)
+	if not color then return end
+	if color.r then
+		texture:SetColorTexture(color.r, color.g, color.b, color.a or 1)
+	else
+		texture:SetColorTexture(color[1] or 1, color[2] or 1, color[3] or 1, color[4] or 1)
+	end
 end
 
 function Factory.CreateMainFrame(name, parent, title)
@@ -130,12 +135,16 @@ function Factory.FormatMoney(value)
 end
 
 function Factory.SetFontColor(fontString, color)
-	if color and color.GetRGBA then
+	if not color then return end
+	if type(color) == "table" and color.GetRGBA then
 		fontString:SetTextColor(color:GetRGBA())
+		return
+	elseif color.r then
+		fontString:SetTextColor(color.r, color.g, color.b, color.a or 1)
 		return
 	end
 
-	fontString:SetTextColor(color[1], color[2], color[3], color[4] or 1)
+	fontString:SetTextColor(color[1] or 1, color[2] or 1, color[3] or 1, color[4] or 1)
 end
 
 function Factory.CreateFooter(parent)
