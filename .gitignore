@@ -1,0 +1,10 @@
+deploy.ps1
+task.md
+implementation_plan.md
+walkthrough.md
+node_modules/
+tests/
+.agents/
+media__*.jpg
+media__*.png
+.antigravityignore

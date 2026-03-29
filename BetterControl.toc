@@ -1,0 +1,23 @@
+## Interface: 110207, 120000, 120001
+## Title: Better Control
+## Notes: Controller-first merchant surfaces for handheld World of Warcraft play.
+## Author: Taraxes
+## Version: 0.1.6
+## SavedVariables: BetterControlDB
+## OptionalDeps: ConsolePort, Blizzard_UIPanelTemplates, Blizzard_UIPanels_Game
+
+Bindings.xml
+Core\Compat.lua
+Core\Addon.lua
+Core\InputAdapter.lua
+Core\FocusList.lua
+Core\SkinTokens.lua
+Core\FrameFactory.lua
+Core\JobScheduler.lua
+Modules\Vendor\PurchaseQueue.lua
+Modules\Vendor\CatalogView.lua
+Modules\Vendor\BuyFlow.lua
+Modules\Vendor\SellView.lua
+Modules\Vendor\BuybackView.lua
+Modules\Vendor\RepairView.lua
+Modules\Vendor\VendorFrame.lua

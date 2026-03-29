@@ -1,0 +1,38 @@
+<Bindings>
+	<Binding name="BETTERCONTROL_VENDOR_CONFIRM" header="BETTERCONTROL" runOnUp="true">
+		BetterControl_HandleBinding("confirm")
+	</Binding>
+	<Binding name="BETTERCONTROL_VENDOR_CANCEL" header="BETTERCONTROL" runOnUp="true">
+		BetterControl_HandleBinding("cancel")
+	</Binding>
+	<Binding name="BETTERCONTROL_VENDOR_QUICK" header="BETTERCONTROL" runOnUp="true">
+		BetterControl_HandleBinding("quick")
+	</Binding>
+	<Binding name="BETTERCONTROL_VENDOR_MAX" header="BETTERCONTROL" runOnUp="true">
+		BetterControl_HandleBinding("max")
+	</Binding>
+	<Binding name="BETTERCONTROL_VENDOR_SELECT" header="BETTERCONTROL" runOnUp="true">
+		BetterControl_HandleBinding("select")
+	</Binding>
+	<Binding name="BETTERCONTROL_VENDOR_COMMIT" header="BETTERCONTROL" runOnUp="true">
+		BetterControl_HandleBinding("commit")
+	</Binding>
+	<Binding name="BETTERCONTROL_VENDOR_PREV_TAB" header="BETTERCONTROL" runOnUp="true">
+		BetterControl_HandleBinding("prevTab")
+	</Binding>
+	<Binding name="BETTERCONTROL_VENDOR_NEXT_TAB" header="BETTERCONTROL" runOnUp="true">
+		BetterControl_HandleBinding("nextTab")
+	</Binding>
+	<Binding name="BETTERCONTROL_VENDOR_UP" header="BETTERCONTROL" runOnUp="true">
+		BetterControl_HandleBinding("up")
+	</Binding>
+	<Binding name="BETTERCONTROL_VENDOR_DOWN" header="BETTERCONTROL" runOnUp="true">
+		BetterControl_HandleBinding("down")
+	</Binding>
+	<Binding name="BETTERCONTROL_VENDOR_PAGE_DOWN" header="BETTERCONTROL" runOnUp="true">
+		BetterControl_HandleBinding("pageDown")
+	</Binding>
+	<Binding name="BETTERCONTROL_VENDOR_PAGE_UP" header="BETTERCONTROL" runOnUp="true">
+		BetterControl_HandleBinding("pageUp")
+	</Binding>
+</Bindings>
