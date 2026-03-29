@@ -262,7 +262,7 @@ function Queue:Start(item, quantity)
 		remainingQty = quantity,
 		cadence = self:GetBaseCadence(),
 		retries = 0,
-		status = string.format("Queued %d x %s", quantity, item.name or item.itemLink or item.index),
+		status = string.format("Queued %d x %s", quantity, ns.GetItemDisplayName(item)),
 	}
 	self:Notify()
 	self:Schedule(0, function()
@@ -293,7 +293,7 @@ function Queue:Complete()
 	end
 
 	self.job.state = "complete"
-	self.job.status = string.format("Completed %d x %s", self.job.purchasedQty, self.job.item.name or self.job.item.index)
+	self.job.status = string.format("Completed %d x %s", self.job.purchasedQty, ns.GetItemDisplayName(self.job.item))
 	self.job.awaiting = nil
 	self:Notify()
 	self.job = nil

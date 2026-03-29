@@ -58,13 +58,19 @@ function ns.RegisterModule(name, module)
 	ns.modules[name] = module
 end
 
-function ns.Debug(msg)
+function ns.Debug(msg, isConsumable)
 	if not ns.DB then return end
 	if not ns.DB.debugLog then ns.DB.debugLog = {} end
 	
+	local prefix = "|cff00ccff[BC]|r "
+	if isConsumable then
+		prefix = prefix .. "|cff00ffff[C]|r "
+	end
+
 	table.insert(ns.DB.debugLog, {
 		time = GetTime(),
-		msg = msg
+		msg = msg,
+		isConsumable = isConsumable
 	})
 	
 	-- Keep only last 100 entries
@@ -72,7 +78,16 @@ function ns.Debug(msg)
 		table.remove(ns.DB.debugLog, 1)
 	end
 	
-	print("|cff00ccff[BC]|r " .. msg)
+	print(prefix .. msg)
+end
+
+function ns.GetItemDisplayName(item)
+	if not item then return "Unknown Item" end
+	local name = item.name or "Unknown Item"
+	if item.isConsumable and ns.ConsumableSignaler and ns.ConsumableSignaler.FormatItemName then
+		return ns.ConsumableSignaler:FormatItemName(name, true)
+	end
+	return name
 end
 
 function ns.Mixin(target, source)

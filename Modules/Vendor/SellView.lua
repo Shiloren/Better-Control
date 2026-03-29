@@ -117,21 +117,22 @@ function SellView:BuildItems()
 		for slot = 1, slotCount do
 			local info = C_Container and C_Container.GetContainerItemInfo and C_Container.GetContainerItemInfo(bag, slot)
 			if info and info.hyperlink then
-				local itemName, _, quality, _, _, _, _, _, _, texture, sellPrice = GetItemInfo(info.hyperlink)
-				sellPrice = sellPrice or 0
-				if sellPrice > 0 then
-					items[#items + 1] = {
-						bag = bag,
-						slot = slot,
-						count = info.stackCount or 1,
-						itemLink = info.hyperlink,
-						name = itemName or info.hyperlink,
-						icon = info.iconFileID or texture,
-						quality = quality,
-						isJunk = quality == Enum.ItemQuality.Poor,
-						sellPrice = sellPrice,
-					}
-				end
+						local itemName, itemLink, quality, _, _, _, _, _, _, texture, sellPrice, _, _, _, _, _, classID = GetItemInfo(info.hyperlink)
+						sellPrice = sellPrice or 0
+						if sellPrice > 0 then
+							items[#items + 1] = {
+								bag = bag,
+								slot = slot,
+								count = info.stackCount or 1,
+								itemLink = info.hyperlink,
+								name = itemName or info.hyperlink,
+								icon = info.iconFileID or texture,
+								quality = quality,
+								isConsumable = classID == Enum.ItemClass.Consumable,
+								isJunk = quality == Enum.ItemQuality.Poor,
+								sellPrice = sellPrice,
+							}
+						end
 			end
 		end
 	end
@@ -187,6 +188,8 @@ function SellView:RefreshRows()
 			row.price:SetText(Factory.FormatMoney((item.sellPrice or 0) * item.count))
 			row.stock:SetText(item.isJunk and "Junk" or "")
 			row.toggle:SetText(self.selected[key] and "[x]" or "[ ]")
+			
+			Factory.UpdateRowSemantics(row, item)
 			Factory.SetRowSelected(row, selected == itemPosition)
 		else
 			row:Hide()

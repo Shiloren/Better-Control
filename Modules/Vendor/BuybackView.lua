@@ -85,6 +85,14 @@ function BuybackView:BuildItems()
 	for index = 1, total do
 		local info = ns.Compat.GetBuybackItemInfo(index)
 		if info and info.name then
+			local itemName, itemLink, quality, _, _, _, _, _, _, texture, _, _, _, _, _, classID = GetItemInfo(info.name)
+			if not itemLink then
+				itemLink = ns.Compat.GetBuybackItemLink(index)
+			end
+			if itemLink and not quality then
+				quality = select(3, GetItemInfo(itemLink))
+			end
+
 			items[#items + 1] = {
 				index = index,
 				name = info.name,
@@ -92,7 +100,9 @@ function BuybackView:BuildItems()
 				price = info.price or 0,
 				quantity = info.quantity or 1,
 				isUsable = info.isUsable ~= false,
-				link = ns.Compat.GetBuybackItemLink(index),
+				isConsumable = classID == Enum.ItemClass.Consumable,
+				quality = quality or info.quality,
+				itemLink = itemLink,
 			}
 		end
 	end
@@ -136,6 +146,16 @@ function BuybackView:RefreshRows()
 			row.meta:SetText(string.format("Quantity: %d", item.quantity))
 			row.price:SetText(Factory.FormatMoney(item.price))
 			row.stock:SetText("")
+			
+			Factory.UpdateRowSemantics(row, item)
+			
+			-- Usability indicators: tint icon if not affordable (not usable in buyback context? usually yes)
+			if (GetMoney() >= item.price) and item.isUsable then
+				row.icon:SetVertexColor(1, 1, 1, 1)
+			else
+				row.icon:SetVertexColor(1, 0.2, 0.2, 0.9)
+			end
+			
 			Factory.SetRowSelected(row, selected == itemPosition)
 		else
 			row:Hide()

@@ -126,6 +126,29 @@ function Factory.SetRowSelected(row, isSelected)
 	end
 end
 
+function Factory.UpdateRowSemantics(row, item)
+	if not item then return end
+	
+	-- P0: Always use item quality color for names
+	local qualityColor = C_Item and C_Item.GetItemQualityColor and C_Item.GetItemQualityColor(item.quality or 1) 
+		or ITEM_QUALITY_COLORS[item.quality or 1]
+	
+	if qualityColor then
+		row.name:SetTextColor(qualityColor.r, qualityColor.g, qualityColor.b)
+	else
+		row.name:SetTextColor(1, 1, 1) -- Fallback to white if quality unknown
+	end
+
+	-- P0: Consumables must use a secondary visual cue (icon border color)
+	if item.isConsumable then
+		row.iconBorder:SetBackdropBorderColor(unpack(tokens.colors.consumable))
+		row.iconBorder:SetBackdropColor(0, 0.1, 0.15, 0.95)
+	else
+		row.iconBorder:SetBackdropBorderColor(0.35, 0.35, 0.35, 0.8)
+		row.iconBorder:SetBackdropColor(0.06, 0.06, 0.06, 0.95)
+	end
+end
+
 function Factory.FormatMoney(value)
 	if not value or value <= 0 then
 		return FREE or "Free"

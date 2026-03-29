@@ -194,10 +194,13 @@ function CatalogView:RefreshRows()
 				row.stock:SetText("Unlimited")
 			end
 
+			ns.FrameFactory.UpdateRowSemantics(row, item)
+			
+			-- Usability indicators: tint icon if not usable or affordable
 			if affordable >= item.unitSize and item.isUsable then
-				ns.FrameFactory.SetFontColor(row.name, NORMAL_FONT_COLOR)
+				row.icon:SetVertexColor(1, 1, 1, 1)
 			else
-				ns.FrameFactory.SetFontColor(row.name, RED_FONT_COLOR)
+				row.icon:SetVertexColor(1, 0.2, 0.2, 0.9)
 			end
 
 			ns.FrameFactory.SetRowSelected(row, selected == itemPosition)
