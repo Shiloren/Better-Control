@@ -40,7 +40,7 @@ end
 
 function RepairView:New(parent, owner)
 	local frame = CreateFrame("Frame", nil, parent)
-	setmetatable(frame, self)
+	ns.Mixin(frame, self)
 	frame.owner = owner
 	frame:SetAllPoints()
 

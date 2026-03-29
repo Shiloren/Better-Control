@@ -25,7 +25,7 @@ ns.VendorBuyFlow = BuyFlow
 
 function BuyFlow:New(parent, owner)
 	local frame = CreateFrame("Frame", nil, parent)
-	setmetatable(frame, self)
+	ns.Mixin(frame, self)
 	frame.owner = owner
 	frame.item = nil
 	frame.quantityMode = ns.DB.vendor.lastQuantityMode or "purchase"

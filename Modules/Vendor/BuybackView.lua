@@ -10,7 +10,7 @@ ns.VendorBuybackView = BuybackView
 
 function BuybackView:New(parent, owner)
 	local frame = CreateFrame("Frame", nil, parent)
-	setmetatable(frame, self)
+	ns.Mixin(frame, self)
 	frame.owner = owner
 	frame.items = {}
 	frame.rows = {}

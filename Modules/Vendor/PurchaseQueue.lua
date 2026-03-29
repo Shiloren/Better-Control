@@ -8,8 +8,9 @@ Queue.__index = Queue
 ns.PurchaseQueueMixin = Queue
 
 local cadenceSteps = { 0.5, 0.75, 1.0, 1.25, 1.5 }
-local ITEM_CLASS_CONSUMABLE = Enum and Enum.ItemClass and Enum.ItemClass.Consumable or 0
-local ITEM_CLASS_TRADEGOODS = Enum and Enum.ItemClass and (Enum.ItemClass.Tradegoods or Enum.ItemClass.TradeGoods) or 7
+local ITEM_CLASS_CONSUMABLE = Enum and Enum.ItemClass and (Enum.ItemClass.Consumable or 0) or 0
+local ITEM_CLASS_TRADEGOODS = Enum and Enum.ItemClass and (Enum.ItemClass.Tradegoods or Enum.ItemClass.TradeGoods or 7) or 7
+
 local busyMessages = {
 	[ERR_OBJECT_IS_BUSY or ""] = true,
 }

@@ -75,6 +75,15 @@ function ns.Debug(msg)
 	print("|cff00ccff[BC]|r " .. msg)
 end
 
+function ns.Mixin(target, source)
+	for key, value in pairs(source) do
+		if target[key] == nil then
+			target[key] = value
+		end
+	end
+	return target
+end
+
 function BetterControl_HandleBinding(action)
 	if ns and ns.BindingDispatcher then
 		ns.BindingDispatcher(action)
@@ -121,12 +130,18 @@ addon:SetScript("OnEvent", function(_, event, ...)
 
 		BetterControlDB = copyDefaults(ns.DEFAULTS, BetterControlDB or {})
 		ns.DB = BetterControlDB
+		ns.Debug("ADDON_LOADED: Dispatching modules")
 		dispatch("OnAddonLoaded")
 		return
 	end
 
 	if event == "PLAYER_LOGIN" then
-		dispatch("OnPlayerLogin")
+		ns.Debug("PLAYER_LOGIN: Dispatching modules")
+		xpcall(function()
+			dispatch("OnPlayerLogin")
+		end, function(err)
+			ns.Debug("CRITICAL ERROR during OnPlayerLogin: " .. tostring(err))
+		end)
 		return
 	end
 

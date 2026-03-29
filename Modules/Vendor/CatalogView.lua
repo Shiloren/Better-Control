@@ -43,7 +43,8 @@ end
 
 function CatalogView:New(parent, owner)
 	local frame = CreateFrame("Frame", nil, parent)
-	setmetatable(frame, self)
+	ns.Mixin(frame, self)
+	
 	frame.owner = owner
 	frame.items = {}
 	frame.filter = ns.DB.vendor.defaultFilter or "all"
@@ -194,12 +195,12 @@ function CatalogView:RefreshRows()
 			end
 
 			if affordable >= item.unitSize and item.isUsable then
-				Factory.SetFontColor(row.name, NORMAL_FONT_COLOR)
+				ns.FrameFactory.SetFontColor(row.name, NORMAL_FONT_COLOR)
 			else
-				Factory.SetFontColor(row.name, RED_FONT_COLOR)
+				ns.FrameFactory.SetFontColor(row.name, RED_FONT_COLOR)
 			end
 
-			Factory.SetRowSelected(row, selected == itemPosition)
+			ns.FrameFactory.SetRowSelected(row, selected == itemPosition)
 		else
 			row:Hide()
 		end

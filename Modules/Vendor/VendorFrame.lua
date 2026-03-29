@@ -1,11 +1,12 @@
 local _, ns = ...
 
 local Factory = ns.FrameFactory
-local Input = ns.InputAdapter
 local L = ns.L
+local tokens = ns.SkinTokens
+local Input = ns.InputAdapter
 
 local Controller = {}
-ns.RegisterModule("Vendor", Controller)
+ns.VendorFrame = Controller
 
 local TAB_ORDER = { "buy", "sell", "buyback", "repair" }
 local TAB_LABELS = {
@@ -15,63 +16,63 @@ local TAB_LABELS = {
 	repair = L.REPAIR,
 }
 
-local function getFooterMap(tab)
-	if tab == "buy" then
-		return {
-			{ action = "confirm", label = "Start" },
-			{ action = "quick", label = "+1 bundle" },
-			{ action = "max", label = "Max" },
-			{ action = "select", label = "Mode" },
-			{ action = "prevTab", label = "Prev tab" },
-			{ action = "nextTab", label = "Next tab" },
-		}
-	end
-
-	if tab == "sell" then
-		return {
-			{ action = "confirm", label = "Sell one" },
-			{ action = "quick", label = "Sell stack" },
-			{ action = "max", label = "Sell junk" },
-			{ action = "select", label = "Toggle" },
-			{ action = "commit", label = "Sell marked" },
-			{ action = "cancel", label = "Close" },
-		}
-	end
-
-	if tab == "buyback" then
-		return {
-			{ action = "confirm", label = "Buy back" },
-			{ action = "pageDown", label = "Page -" },
-			{ action = "pageUp", label = "Page +" },
-			{ action = "prevTab", label = "Prev tab" },
-			{ action = "nextTab", label = "Next tab" },
-			{ action = "cancel", label = "Close" },
-		}
-	end
-
-	return {
-		{ action = "confirm", label = "Equipped" },
-		{ action = "quick", label = "Repair all" },
-		{ action = "max", label = "Guild repair" },
-		{ action = "prevTab", label = "Prev tab" },
-		{ action = "nextTab", label = "Next tab" },
-		{ action = "cancel", label = "Close" },
-	}
+function Controller:OnAddonLoaded()
+	-- Initialization if needed
 end
 
-function Controller:OnAddonLoaded()
-	ns.Addon:RegisterRuntimeEvent("MERCHANT_SHOW")
-	ns.Addon:RegisterRuntimeEvent("MERCHANT_CLOSED")
-	ns.Addon:RegisterRuntimeEvent("MERCHANT_UPDATE")
-	ns.Addon:RegisterRuntimeEvent("PLAYER_MONEY")
-	ns.Addon:RegisterRuntimeEvent("CURRENCY_DISPLAY_UPDATE")
-	ns.Addon:RegisterRuntimeEvent("BAG_UPDATE_DELAYED")
-	ns.Addon:RegisterRuntimeEvent("GUILDBANK_UPDATE_MONEY")
-	ns.Addon:RegisterRuntimeEvent("GUILDBANK_UPDATE_WITHDRAWMONEY")
-	ns.Addon:RegisterRuntimeEvent("UI_ERROR_MESSAGE")
+function Controller:OnSlashCommand(msg)
+	if msg == "" or msg == "show" then
+		self:ShowWindow()
+	elseif msg == "hide" or msg == "close" then
+		self.frame:Hide()
+	end
+end
+
+function Controller:OnEvent(event, ...)
+	if event == "MERCHANT_SHOW" then
+		ns.Debug("Event: MERCHANT_SHOW. Initializing UI...")
+		self:ShowWindow()
+		-- Small delay to let items load
+		ns.JobScheduler:Schedule(0.1, function()
+			self:RefreshActiveView()
+		end)
+	elseif event == "MERCHANT_CLOSED" then
+		if self.frame then
+			self.frame:Hide()
+		end
+		self:ReleaseMerchantFrame()
+	elseif event == "MERCHANT_UPDATE" then
+		self:RefreshActiveView()
+	elseif event == "BAG_UPDATE_DELAYED" then
+		self:RefreshActiveView()
+	end
+end
+
+function Controller:ShowWindow()
+	if not self.frame then
+		self:CreateFrame()
+	end
+
+	self.frame:Show()
+	self:AdoptMerchantFrame()
+end
+
+function Controller:AdoptMerchantFrame()
+	if MerchantFrame then
+		MerchantFrame:SetAlpha(0)
+		MerchantFrame:SetIgnoreParentAlpha(true)
+	end
+end
+
+function Controller:ReleaseMerchantFrame()
+	if MerchantFrame then
+		MerchantFrame:SetAlpha(1)
+		MerchantFrame:SetIgnoreParentAlpha(false)
+	end
 end
 
 function Controller:OnPlayerLogin()
+	ns.Debug("OnPlayerLogin: Initializing Better Control Vendor...")
 	ns.InputAdapter:DetectInitialMode()
 	self.purchaseQueue = ns.PurchaseQueueMixin:New(self)
 	self:CreateFrame()
@@ -81,10 +82,6 @@ function Controller:CreateFrame()
 	local frame = Factory.CreateMainFrame("BetterControlVendorFrame", UIParent, L.APP_TITLE)
 	frame:Hide()
 	self.frame = frame
-	frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-	frame.CloseButton:SetScript("OnClick", function()
-		CloseMerchant()
-	end)
 
 	frame.input = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	frame.input:SetPoint("TOPRIGHT", -14, -12)
@@ -108,8 +105,8 @@ function Controller:CreateFrame()
 	for tabIndex, tabId in ipairs(TAB_ORDER) do
 		local tab = Factory.CreateTab(frame, tabIndex, TAB_LABELS[tabId], string.format("%sTab%d", frame:GetName(), tabIndex))
 		tab.tabId = tabId
-		tab:SetScript("OnClick", function(selfTab)
-			self:SetTab(selfTab.tabId)
+		tab:SetScript("OnClick", function()
+			self:SetTab(tabId)
 		end)
 		frame.Tabs[tabIndex] = tab
 		frame.tabsById[tabId] = tab
@@ -118,35 +115,46 @@ function Controller:CreateFrame()
 	-- Secondary loop for positioning (requires tabsById to be populated)
 	for tabIndex, tabId in ipairs(TAB_ORDER) do
 		local tab = frame.tabsById[tabId]
-		if tabIndex == 1 then
-			tab:SetPoint("BOTTOMLEFT", frame.Inset, "TOPLEFT", 6, 2)
-		else
-			local prevTabId = TAB_ORDER[tabIndex - 1]
-			local prevTab = frame.tabsById[prevTabId]
-			if prevTab then
-				tab:SetPoint("LEFT", prevTab, "RIGHT", -4, 0)
+		if tab then
+			if tabIndex == 1 then
+				tab:SetPoint("BOTTOMLEFT", frame.Inset, "TOPLEFT", 6, 2)
+			else
+				local prevTabId = TAB_ORDER[tabIndex - 1]
+				local prevTab = frame.tabsById[prevTabId]
+				if prevTab then
+					tab:SetPoint("LEFT", prevTab, "RIGHT", -4, 0)
+				end
 			end
 		end
 	end
+	
 	frame.numTabs = #TAB_ORDER
 
 	frame.content = CreateFrame("Frame", nil, frame.Inset)
-	frame.content:SetPoint("TOPLEFT", 4, -4)
-	frame.content:SetPoint("BOTTOMRIGHT", -4, 44)
+	frame.content:SetAllPoints()
 
 	frame.footer = Factory.CreateFooter(frame)
-	frame.footer:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 8, 8)
-	frame.footer:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, 8)
-	frame.hints = {}
+	frame.footer:SetPoint("BOTTOMLEFT", 4, 4)
+	frame.footer:SetPoint("BOTTOMRIGHT", -4, 4)
+
+	local hints = {
+		{ action = "confirm", text = L.HINT_CONFIRM },
+		{ action = "cancel", text = L.HINT_CANCEL },
+		{ action = "quick", text = L.HINT_QUICK },
+		{ action = "max", text = L.HINT_MAX },
+	}
+
 	local previousHint
-	for index = 1, 6 do
+	for _, data in ipairs(hints) do
 		local hint = Factory.CreateHint(frame.footer)
+		hint.key:SetText(Input:GetActionLabel(data.action))
+		hint.text:SetText(data.text)
+		
 		if previousHint then
-			hint:SetPoint("LEFT", previousHint, "RIGHT", 6, 0)
+			hint:SetPoint("LEFT", previousHint, "RIGHT", 16, 0)
 		else
-			hint:SetPoint("LEFT", 6, 0)
+			hint:SetPoint("LEFT", 12, 0)
 		end
-		frame.hints[index] = hint
 		previousHint = hint
 	end
 
@@ -162,19 +170,24 @@ function Controller:CreateFrame()
 	end)
 
 	self.views = {}
-
 	self.views.buy = CreateFrame("Frame", nil, frame.content)
 	self.views.buy:SetAllPoints()
-	self.views.buy.catalog = ns.VendorCatalogView:New(self.views.buy, self)
-	self.views.buy.flow = ns.VendorBuyFlow:New(self.views.buy, self)
 
-	self.views.sell = ns.VendorSellView:New(frame.content, self)
-	self.views.buyback = ns.VendorBuybackView:New(frame.content, self)
-	self.views.repair = ns.VendorRepairView:New(frame.content, self)
+	-- Safe creation of views using Mixins
+	xpcall(function()
+		self.views.buy.catalog = ns.VendorCatalogView:New(self.views.buy, self)
+		self.views.buy.flow = ns.VendorBuyFlow:New(self.views.buy, self)
+		self.views.sell = ns.VendorSellView:New(frame.content, self)
+		self.views.buyback = ns.VendorBuybackView:New(frame.content, self)
+		self.views.repair = ns.VendorRepairView:New(frame.content, self)
+	end, function(err) 
+		ns.Debug("CRITICAL ERROR during View Creation: " .. tostring(err)) 
+	end)
 
 	Input:Attach(frame, function(action)
 		self:HandleInput(action)
 	end)
+	
 	ns.BindingDispatcher = function(action)
 		self:HandleInput(action)
 	end
@@ -183,269 +196,101 @@ function Controller:CreateFrame()
 end
 
 function Controller:SetTab(tabId)
-	if not self.frame then
-		return
-	end
-
+	if not self.frame then return end
 	self.activeTab = tabId
 	ns.DB.vendor.rememberTab = tabId
 
-	for viewId, view in pairs(self.views) do
-		view:SetShown(viewId == tabId)
-	end
-
-	for index, orderedTabId in ipairs(TAB_ORDER) do
-		if orderedTabId == tabId then
-			PanelTemplates_SetTab(self.frame, index)
-			break
+	for id, tab in pairs(self.frame.tabsById) do
+		if id == tabId then
+			PanelTemplates_SelectTab(tab)
+		else
+			PanelTemplates_DeselectTab(tab)
 		end
 	end
 
-	self:UpdateFooter()
-	if MerchantFrame and MerchantFrame:IsShown() then
-		self:RefreshActiveView()
-	end
-end
-
-function Controller:CycleTab(step)
-	local currentIndex = 1
-	for index, tabId in ipairs(TAB_ORDER) do
-		if tabId == self.activeTab then
-			currentIndex = index
-			break
+	for id, view in pairs(self.views) do
+		if id == tabId then
+			view:Show()
+		else
+			view:Hide()
 		end
 	end
 
-	currentIndex = currentIndex + step
-	if currentIndex < 1 then
-		currentIndex = #TAB_ORDER
-	elseif currentIndex > #TAB_ORDER then
-		currentIndex = 1
-	end
-
-	self:SetTab(TAB_ORDER[currentIndex])
+	self:RefreshActiveView()
 end
 
-function Controller:UpdateFooter()
-	local hintMap = getFooterMap(self.activeTab)
-	for index, hintData in ipairs(hintMap) do
-		local hint = self.frame.hints[index]
-		hint.key:SetText(Input:GetActionLabel(hintData.action))
-		hint.text:SetText(hintData.label)
-		hint:Show()
-	end
+function Controller:RefreshActiveView()
+	if not self.views then return end
+	
+	local view = self.views[self.activeTab]
+	if not view then return end
 
-	for index = #hintMap + 1, #self.frame.hints do
-		self.frame.hints[index]:Hide()
+	-- Robust refresh calls
+	if self.activeTab == "buy" then
+		if view.catalog and view.catalog.Refresh then
+			view.catalog:Refresh()
+		end
+	elseif view.Refresh then
+		view:Refresh()
 	end
-
-	self.frame.device:SetText(string.format("%s: %s", L.DEVICE_PROFILE, Input:IsControllerMode() and L.ALLY_LAYOUT or L.MOUSE_LAYOUT))
 end
 
 function Controller:SetSelectedBuyItem(item)
-	self.selectedBuyItem = item
-	self.views.buy.flow:SetItem(item)
-end
-
-function Controller:GetSelectedBuyItem()
-	return self.selectedBuyItem
+	if self.views.buy and self.views.buy.flow then
+		self.views.buy.flow:SetItem(item)
+	end
 end
 
 function Controller:StartSelectedPurchase()
-	if self.views and self.views.buy and self.views.buy.flow then
+	if self.views.buy and self.views.buy.flow then
 		self.views.buy.flow:StartPurchase()
 	end
 end
 
-function Controller:OnQueueStatusChanged(job)
-	if self.views and self.views.buy and self.views.buy.flow then
-		self.views.buy.flow:OnQueueStatusChanged(job)
-	end
-end
-
 function Controller:RequestPurchase(item, quantity)
-	if not item or not quantity or quantity <= 0 then
-		return false, "Invalid purchase request"
-	end
-
-	ns.Compat.BuyItem(item.index, quantity)
+	if not item or not item.index then return false, "No item" end
+	
+	-- Actual Blizzard API call
+	BuyMerchantItem(item.index, quantity)
 	return true
 end
 
-function Controller:RefreshAll()
-	for _, tabId in ipairs(TAB_ORDER) do
-		local previousTab = self.activeTab
-		self.activeTab = tabId
-		self:RefreshActiveView()
-		self.activeTab = previousTab
-	end
-end
-
-function Controller:RefreshActiveView()
-	xpcall(function()
-		if not self.views then
-			ns.Debug("Warning: RefreshActiveView called but self.views is nil")
-			return
-		end
-		
-		local view = self.views[self.activeTab]
-		if not view then
-			ns.Debug("Warning: No view for tab: " .. tostring(self.activeTab))
-			return
-		end
-
-		if self.activeTab == "buy" then
-			if view.catalog and view.catalog.Refresh then
-				view.catalog:Refresh()
-			else
-				ns.Debug("Warning: buy.catalog is missing in RefreshActiveView")
-			end
-			
-			if view.flow and view.flow.Refresh then
-				view.flow:Refresh()
-			end
-		elseif view.Refresh then
-			view:Refresh()
-		else
-			ns.Debug("Warning: View for " .. tostring(self.activeTab) .. " has no Refresh function")
-		end
-	end, function(err)
-		ns.Debug("Error refreshing view: " .. tostring(err))
-		ns.Debug(debugstack(2, 4, 1))
-	end)
-end
-
-function Controller:AdoptMerchantFrame()
-	if not MerchantFrame then
-		self.frame:ClearAllPoints()
-		self.frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-		self.frame:SetFrameStrata("HIGH")
-		self.frame:Raise()
-		return
-	end
-
-	if not self.merchantState then
-		self.merchantState = {
-			mouseEnabled = MerchantFrame:IsMouseEnabled(),
-		}
-	end
-
-	MerchantFrame:EnableMouse(false)
-
-	self.frame:ClearAllPoints()
-	self.frame:SetPoint("CENTER", MerchantFrame, "CENTER", 0, 0)
-	self.frame:SetFrameStrata("HIGH")
-	self.frame:SetFrameLevel(MerchantFrame:GetFrameLevel() + 20)
-	self.frame:Raise()
-end
-
-function Controller:ReleaseMerchantFrame()
-	if not MerchantFrame or not self.merchantState then
-		return
-	end
-
-	MerchantFrame:EnableMouse(self.merchantState.mouseEnabled ~= false)
-end
-
 function Controller:HandleInput(action)
-	if not self.frame or not self.frame:IsShown() then
-		return
+	local view = self.views[self.activeTab]
+	if view and view.HandleAction then
+		if view:HandleAction(action) then
+			return true
+		end
 	end
 
 	if action == "prevTab" then
 		self:CycleTab(-1)
-		return
-	end
-
-	if action == "nextTab" then
+		return true
+	elseif action == "nextTab" then
 		self:CycleTab(1)
-		return
-	end
-
-	if action == "cancel" and self.purchaseQueue and self.purchaseQueue.job then
-		self.purchaseQueue:Cancel("Cancelled")
-		return
-	end
-
-	if action == "cancel" then
-		CloseMerchant()
-		return
-	end
-
-	local handled = false
-	if self.activeTab == "buy" then
-		handled = self.views.buy.flow:HandleAction(action)
-		if not handled then
-			handled = self.views.buy.catalog:HandleAction(action)
-		end
-	elseif self.activeTab == "sell" then
-		handled = self.views.sell:HandleAction(action)
-	elseif self.activeTab == "buyback" then
-		handled = self.views.buyback:HandleAction(action)
-	elseif self.activeTab == "repair" then
-		handled = self.views.repair:HandleAction(action)
-	end
-
-	if handled then
-		self:UpdateFooter()
-	end
-end
-
-function Controller:OnEvent(event, ...)
-	if not self.frame then
-		return
-	end
-
-	if event == "MERCHANT_SHOW" then
-		if not ns.DB.vendor.enabled then
-			return
-		end
-
-		ns.Debug("Event: MERCHANT_SHOW. Initializing UI...")
-		ns.JobScheduler:Schedule(0.1, function()
-			xpcall(function()
-				self:AdoptMerchantFrame()
-				self.frame:Show()
-				self:RefreshActiveView()
-				self:UpdateFooter()
-			end, geterrorhandler())
-		end)
-		return
-	end
-
-	if event == "MERCHANT_CLOSED" then
-		self.purchaseQueue:OnEvent(event, ...)
-		self:ReleaseMerchantFrame()
+		return true
+	elseif action == "cancel" then
 		self.frame:Hide()
-		return
+		return true
 	end
 
-	self.purchaseQueue:OnEvent(event, ...)
+	return false
+end
 
-	if self.frame:IsShown() then
-		if event == "MERCHANT_UPDATE" or event == "PLAYER_MONEY" or event == "CURRENCY_DISPLAY_UPDATE" or event == "BAG_UPDATE_DELAYED" or event == "GUILDBANK_UPDATE_MONEY" or event == "GUILDBANK_UPDATE_WITHDRAWMONEY" then
-			self:RefreshActiveView()
+function Controller:CycleTab(delta)
+	local currentIndex = 1
+	for i, id in ipairs(TAB_ORDER) do
+		if id == self.activeTab then
+			currentIndex = i
+			break
 		end
 	end
+
+	local nextIndex = currentIndex + delta
+	if nextIndex < 1 then nextIndex = #TAB_ORDER end
+	if nextIndex > #TAB_ORDER then nextIndex = 1 end
+
+	self:SetTab(TAB_ORDER[nextIndex])
 end
 
-function Controller:OnSlashCommand(message)
-	if not MerchantFrame or not MerchantFrame:IsShown() then
-		print("Better Control: open a merchant to use the vendor surface.")
-		return
-	end
-
-	if message == "sell" then
-		self:SetTab("sell")
-	elseif message == "buyback" then
-		self:SetTab("buyback")
-	elseif message == "repair" then
-		self:SetTab("repair")
-	else
-		self:SetTab("buy")
-	end
-
-	self:AdoptMerchantFrame()
-	self.frame:Show()
-	self:UpdateFooter()
-end
+ns.RegisterModule("VendorFrame", Controller)

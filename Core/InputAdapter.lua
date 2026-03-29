@@ -152,7 +152,7 @@ end
 
 function InputAdapter:Attach(frame, callback)
 	if frame.SetPropagateKeyboardInput then
-		frame:SetPropagateKeyboardInput(false)
+		frame:SetPropagateKeyboardInput(true)
 	end
 
 	if frame.EnableKeyboard then
