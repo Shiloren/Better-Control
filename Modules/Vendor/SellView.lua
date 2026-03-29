@@ -180,17 +180,24 @@ function SellView:RefreshRows()
 		row.itemPosition = itemPosition
 
 		if item then
-			local key = makeKey(item)
-			row:Show()
-			row.icon:SetTexture(item.icon or 134400)
-			row.name:SetText(item.name)
-			row.meta:SetText(string.format("Bag %d Slot %d  Count %d", item.bag, item.slot, item.count))
-			row.price:SetText(Factory.FormatMoney((item.sellPrice or 0) * item.count))
-			row.stock:SetText(item.isJunk and "Junk" or "")
-			row.toggle:SetText(self.selected[key] and "[x]" or "[ ]")
-			
-			Factory.UpdateRowSemantics(row, item)
-			Factory.SetRowSelected(row, selected == itemPosition)
+			local success, err = pcall(function()
+				local key = makeKey(item)
+				row:Show()
+				row.icon:SetTexture(item.icon or 134400)
+				row.name:SetText(item.name)
+				row.meta:SetText(string.format("Bag %d Slot %d  Count %d", item.bag, item.slot, item.count))
+				row.price:SetText(Factory.FormatMoney((item.sellPrice or 0) * item.count))
+				row.stock:SetText(item.isJunk and "Junk" or "")
+				row.toggle:SetText(self.selected[key] and "[x]" or "[ ]")
+				
+				Factory.UpdateRowSemantics(row, item)
+				Factory.SetRowSelected(row, selected == itemPosition)
+			end)
+
+			if not success then
+				ns.Debug(string.format("Error rendering Sell row %d: %s", itemPosition, tostring(err)))
+				row:Hide()
+			end
 		else
 			row:Hide()
 		end

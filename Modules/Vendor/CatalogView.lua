@@ -182,28 +182,36 @@ function CatalogView:RefreshRows()
 		row.itemPosition = itemPosition
 
 		if item then
-			local affordable = Utils.GetAffordableQuantity(item)
-			row:Show()
-			row.icon:SetTexture(item.icon or 134400)
-			row.name:SetText(item.name)
-			row.meta:SetText(string.format("%s: %d  %s: %d  Can buy: %d", L.OWNED, Utils.GetOwnedCount(item), L.BUNDLE, item.unitSize, affordable))
-			row.price:SetText(Utils.DescribeCosts(item, item.unitSize))
-			if item.stock and item.stock > -1 then
-				row.stock:SetText(string.format("%s: %d", L.VENDOR_STOCK, item.stock))
-			else
-				row.stock:SetText("Unlimited")
-			end
+			local success, err = pcall(function()
+				local affordable = Utils.GetAffordableQuantity(item)
+				row:Show()
+				row.icon:SetTexture(item.icon or 134400)
+				row.name:SetText(item.name)
+				row.meta:SetText(string.format("%s: %d  %s: %d  Can buy: %d", L.OWNED, Utils.GetOwnedCount(item), L.BUNDLE, item.unitSize, affordable))
+				row.price:SetText(Utils.DescribeCosts(item, item.unitSize))
+				if item.stock and item.stock > -1 then
+					row.stock:SetText(string.format("%s: %d", L.VENDOR_STOCK, item.stock))
+				else
+					row.stock:SetText("Unlimited")
+				end
 
-			ns.FrameFactory.UpdateRowSemantics(row, item)
-			
-			-- Usability indicators: tint icon if not usable or affordable
-			if affordable >= item.unitSize and item.isUsable then
-				row.icon:SetVertexColor(1, 1, 1, 1)
-			else
-				row.icon:SetVertexColor(1, 0.2, 0.2, 0.9)
-			end
+				ns.FrameFactory.UpdateRowSemantics(row, item)
+				
+				-- Usability indicators: tint icon if not usable or affordable
+				if affordable >= item.unitSize and item.isUsable then
+					row.icon:SetVertexColor(1, 1, 1, 1)
+				else
+					row.icon:SetVertexColor(1, 0.2, 0.2, 0.9)
+				end
 
-			ns.FrameFactory.SetRowSelected(row, selected == itemPosition)
+				ns.FrameFactory.SetRowSelected(row, selected == itemPosition)
+			end)
+
+			if not success then
+				ns.Debug(string.format("Error rendering Catalog row %d: %s", itemPosition, tostring(err)))
+				-- Ensure row is in a safe state if it failed
+				row:Hide()
+			end
 		else
 			row:Hide()
 		end

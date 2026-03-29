@@ -152,23 +152,44 @@ end
 
 -- 3. Visual Semantics Helpers
 function Compat.GetItemQualityColor(quality)
-	local q = quality or 1
-	-- Try C_Item first (Retail)
-	if C_Item and C_Item.GetItemQualityColor then
-		local color = C_Item.GetItemQualityColor(q)
-		if color then
-			if color.GetRGB then
-				return color:GetRGB()
-			elseif color.r then
-				return color.r, color.g, color.b
-			end
+	local q = tonumber(quality) or 1
+	
+	-- Internal helper to extract RGB from various WoW color formats
+	local function extract(c)
+		if not c then return nil end
+		if type(c.GetRGB) == "function" then
+			local r, g, b = c:GetRGB()
+			if r and g and b then return r, g, b end
+		elseif type(c) == "table" and c.r and c.g and c.b then
+			return c.r, c.g, c.b
 		end
+		return nil
 	end
-	-- Fallback to global table
-	local color = ITEM_QUALITY_COLORS[q]
-	if color then
-		return color.r, color.g, color.b
+
+	-- 1. Try C_Item (Retail 9.0+)
+	if C_Item and C_Item.GetItemQualityColor then
+		local r, g, b = extract(C_Item.GetItemQualityColor(q))
+		if r then return r, g, b end
 	end
+
+	-- 2. Fallback to global table ITEM_QUALITY_COLORS
+	if ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q] then
+		local r, g, b = extract(ITEM_QUALITY_COLORS[q])
+		if r then return r, g, b end
+	end
+
+	-- 3. Hardcoded fallbacks for standard qualities if everything else fails
+	local fallbacks = {
+		[0] = {0.62, 0.62, 0.62}, -- Poor
+		[1] = {1, 1, 1},          -- Common
+		[2] = {0.12, 1, 0},       -- Uncommon
+		[3] = {0, 0.44, 0.87},    -- Rare
+		[4] = {0.64, 0.21, 0.93}, -- Epic
+		[5] = {1, 0.5, 0},        -- Legendary
+	}
+	local f = fallbacks[q]
+	if f then return f[1], f[2], f[3] end
+
 	-- Ultimate fallback (White)
 	return 1, 1, 1
 end
@@ -176,26 +197,35 @@ end
 function Compat.IsConsumable(itemInfo)
 	if not itemInfo then return false end
 	
-	-- 1. Check if classID is already provided in table
-	if type(itemInfo) == "table" and itemInfo.classID == Enum.ItemClass.Consumable then
-		return true
+	-- 1. Fast path: Direct property check
+	if type(itemInfo) == "table" then
+		if itemInfo.classID == (Enum.ItemClass.Consumable or 0) then return true end
+		if itemInfo.isConsumable == true then return true end
 	end
 
-	-- 2. Check if it's already marked isConsumable
-	if type(itemInfo) == "table" and itemInfo.isConsumable then
-		return true
+	-- 2. Identification path: hyperlink or ID
+	local identifier
+	if type(itemInfo) == "table" then
+		identifier = itemInfo.itemLink or itemInfo.itemID
+	elseif type(itemInfo) == "string" or type(itemInfo) == "number" then
+		identifier = itemInfo
 	end
 
-	-- 3. Resolve from link/ID
-	local identifier = type(itemInfo) == "table" and (itemInfo.itemLink or itemInfo.itemID) or itemInfo
-	if identifier then
-		local _, _, _, _, _, _, _, _, _, _, _, classID = GetItemInfo(identifier)
-		-- If GetItemInfo failed (not cached), try Instant if available
-		if not classID and C_Item and C_Item.GetItemInfoInstant then
-			local infoInstant = C_Item.GetItemInfoInstant(identifier)
-			classID = infoInstant and infoInstant.classID
+	if not identifier then return false end
+
+	-- 3. Resolve using WoW APIs with safety checks
+	-- Attempt C_Item.GetItemInfoInstant first (Synchronous, does not wait for cache)
+	if C_Item and C_Item.GetItemInfoInstant then
+		local ok, info = pcall(C_Item.GetItemInfoInstant, identifier)
+		if ok and info and info.classID == (Enum.ItemClass.Consumable or 0) then
+			return true
 		end
-		return classID == Enum.ItemClass.Consumable
+	end
+
+	-- Fallback to legacy GetItemInfo (Asynchronous/Cache-dependent)
+	local ok, _, _, _, _, _, _, _, _, _, _, _, classID = pcall(GetItemInfo, identifier)
+	if ok and classID == (Enum.ItemClass.Consumable or 0) then
+		return true
 	end
 
 	return false

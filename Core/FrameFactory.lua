@@ -130,11 +130,21 @@ function Factory.UpdateRowSemantics(row, item)
 	if not item then return end
 	
 	-- Quality Color Resolution (Runtime Safe)
-	local r, g, b = ns.Compat.GetItemQualityColor(item.quality)
-	row.name:SetTextColor(r, g, b)
+	local okColor, r, g, b = pcall(ns.Compat.GetItemQualityColor, item.quality)
+	if okColor and r then
+		row.name:SetTextColor(r, g, b)
+	else
+		row.name:SetTextColor(1, 1, 1) -- Fallback to white if helper failed
+	end
 
 	-- Consumable Detection (Unified Helper)
-	if ns.Compat.IsConsumable(item) then
+	local isConsumable = false
+	local okConsumable, result = pcall(ns.Compat.IsConsumable, item)
+	if okConsumable then
+		isConsumable = result
+	end
+
+	if isConsumable then
 		row.iconBorder:SetBackdropBorderColor(unpack(tokens.colors.consumable))
 		row.iconBorder:SetBackdropColor(0, 0.1, 0.15, 0.95)
 	else

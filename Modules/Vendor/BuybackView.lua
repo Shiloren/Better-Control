@@ -140,23 +140,30 @@ function BuybackView:RefreshRows()
 		local item = self.items[itemPosition]
 		row.itemPosition = itemPosition
 		if item then
-			row:Show()
-			row.icon:SetTexture(item.icon or 134400)
-			row.name:SetText(item.name)
-			row.meta:SetText(string.format("Quantity: %d", item.quantity))
-			row.price:SetText(Factory.FormatMoney(item.price))
-			row.stock:SetText("")
-			
-			Factory.UpdateRowSemantics(row, item)
-			
-			-- Usability indicators: tint icon if not affordable (not usable in buyback context? usually yes)
-			if (GetMoney() >= item.price) and item.isUsable then
-				row.icon:SetVertexColor(1, 1, 1, 1)
-			else
-				row.icon:SetVertexColor(1, 0.2, 0.2, 0.9)
+			local success, err = pcall(function()
+				row:Show()
+				row.icon:SetTexture(item.icon or 134400)
+				row.name:SetText(item.name)
+				row.meta:SetText(string.format("Quantity: %d", item.quantity))
+				row.price:SetText(Factory.FormatMoney(item.price))
+				row.stock:SetText("")
+				
+				Factory.UpdateRowSemantics(row, item)
+				
+				-- Usability indicators: tint icon if not affordable
+				if (GetMoney() >= item.price) and item.isUsable then
+					row.icon:SetVertexColor(1, 1, 1, 1)
+				else
+					row.icon:SetVertexColor(1, 0.2, 0.2, 0.9)
+				end
+				
+				Factory.SetRowSelected(row, selected == itemPosition)
+			end)
+
+			if not success then
+				ns.Debug(string.format("Error rendering Buyback row %d: %s", itemPosition, tostring(err)))
+				row:Hide()
 			end
-			
-			Factory.SetRowSelected(row, selected == itemPosition)
 		else
 			row:Hide()
 		end
