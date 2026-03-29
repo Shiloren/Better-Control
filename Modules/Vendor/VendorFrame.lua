@@ -1,7 +1,7 @@
 local _, ns = ...
 
 local Factory = ns.FrameFactory
-local L = ns.L
+local L = ns.L or {}
 local tokens = ns.SkinTokens
 local Input = ns.InputAdapter
 
@@ -89,8 +89,12 @@ function Controller:OnPlayerLogin()
 end
 
 function Controller:CreateFrame()
-	local frame = Factory.CreateMainFrame("BetterControlVendorFrame", UIParent, L.APP_TITLE)
+	local frame = Factory.CreateMainFrame("BetterControlVendorFrame", UIParent, L.APP_TITLE or "Vendor")
+	frame:SetPoint("CENTER")
 	frame:Hide()
+	
+	-- Explicitly bind Inset from ButtonFrameTemplate
+	frame.Inset = _G[frame:GetName() .. "Inset"]
 	self.frame = frame
 
 	frame.input = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -182,6 +186,17 @@ function Controller:CreateFrame()
 	self.views = {}
 	self.views.buy = CreateFrame("Frame", nil, frame.content)
 	self.views.buy:SetAllPoints()
+	
+	-- Buy view container needs to route HandleAction to its children
+	self.views.buy.HandleAction = function(view, action)
+		if view.catalog and view.catalog.HandleAction and view.catalog:HandleAction(action) then
+			return true
+		end
+		if view.flow and view.flow.HandleAction and view.flow:HandleAction(action) then
+			return true
+		end
+		return false
+	end
 
 	-- Safe creation of views using Mixins
 	xpcall(function()
@@ -261,8 +276,8 @@ end
 function Controller:RequestPurchase(item, quantity)
 	if not item or not item.index then return false, "No item" end
 	
-	-- Actual Blizzard API call
-	BuyMerchantItem(item.index, quantity)
+	-- Use compatibility layer for Midnight (12.x) support
+	ns.Compat.BuyItem(item.index, quantity)
 	return true
 end
 

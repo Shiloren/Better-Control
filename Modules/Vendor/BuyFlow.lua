@@ -1,7 +1,7 @@
 local _, ns = ...
 
 local Factory = ns.FrameFactory
-local L = ns.L
+local L = ns.L or {}
 local Utils = ns.VendorPurchaseUtils
 
 StaticPopupDialogs.BETTERCONTROL_CONFIRM_VENDOR_PURCHASE = {
