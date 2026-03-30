@@ -9,7 +9,7 @@ local Controller = {}
 ns.VendorFrame = Controller
 
 local TAB_ORDER = { "main", "buyback" }
-local SUB_TAB_ORDER = { "buy", "sell", "repair" }
+local SUB_TAB_ORDER = { "buy", "sell" }
 
 local function ResolveTabLabel(tabId)
 	if tabId == "main" then
@@ -34,7 +34,7 @@ function Controller:OnSlashCommand(msg)
 	if msg == "" or msg == "show" then
 		self:ShowWindow()
 	elseif msg == "hide" or msg == "close" then
-		self:CloseWindowAndInteraction()
+		self:Close("slash")
 	end
 end
 
@@ -47,12 +47,7 @@ function Controller:OnEvent(event, ...)
 			self:RefreshActiveView()
 		end)
 	elseif event == "MERCHANT_CLOSED" then
-		self._closing = true -- Temporary guard to prevent OnHide cycles
-		if self.frame then
-			self.frame:Hide()
-		end
-		self:ReleaseMerchantFrame()
-		self._closing = false
+		self:Close("MERCHANT_CLOSED")
 	elseif event == "MERCHANT_UPDATE" then
 		self:RefreshActiveView()
 	elseif event == "BAG_UPDATE_DELAYED" then
@@ -88,20 +83,32 @@ function Controller:ReleaseMerchantFrame()
 	end
 end
 
-function Controller:CloseWindowAndInteraction()
+function Controller:Close(reason)
 	if self._closing then return end
 	self._closing = true
 	
-	ns.Debug("Closing Vendor interaction via canonical helper...")
+	ns.Debug("Closing Vendor interaction via canonical helper: " .. (reason or "unknown"))
+	
+	-- 1. Close interaction for all paths EXCEPT when already closed by event
+	if reason ~= "MERCHANT_CLOSED" then
+		-- Canonical compatibility close: Handles Midnight (C_MerchantFrame) and Legacy
+		ns.Compat.CloseMerchantInteraction()
+	end
+	
+	-- 2. Hide our UI
 	if self.frame and self.frame:IsShown() then
 		self.frame:Hide()
 	end
 	
-	-- Canonical compatibility close: Handles Midnight (C_MerchantFrame) and Legacy
-	ns.Compat.CloseMerchantInteraction()
-	
+	-- 3. Release Blizzard UI state
 	self:ReleaseMerchantFrame()
+	
 	self._closing = false
+end
+
+-- Deprecated: use Close(reason)
+function Controller:CloseWindowAndInteraction()
+	self:Close("window")
 end
 
 function Controller:OnPlayerLogin()
@@ -134,12 +141,12 @@ function Controller:CreateFrame()
 	end)
 
 	frame:SetScript("OnHide", function()
-		self:CloseWindowAndInteraction()
+		self:Close("hide")
 	end)
 
 	if frame.CloseButton then
 		frame.CloseButton:SetScript("OnClick", function()
-			self:CloseWindowAndInteraction()
+			self:Close("button")
 		end)
 	end
 
@@ -196,12 +203,32 @@ function Controller:CreateFrame()
 		frame.subTabsById[subId] = subTab
 	end
 
-	-- Global "Sell Junk" button for the main surface
-	frame.sellJunkButton = Factory.CreateButton(frame, L.SELL_JUNK or "Sell Junk", 100, 22)
-	frame.sellJunkButton:SetPoint("TOPRIGHT", frame.Inset, "TOPRIGHT", -10, -5)
+	-- Global "Sell Junk" and "Repair" buttons for the main surface header
+	frame.headerActions = CreateFrame("Frame", nil, frame)
+	frame.headerActions:SetSize(300, 30)
+	frame.headerActions:SetPoint("TOPRIGHT", frame.Inset, "TOPRIGHT", -10, -5)
+
+	frame.sellJunkButton = Factory.CreateButton(frame.headerActions, L.SELL_JUNK or "Sell Junk", 90, 22)
+	frame.sellJunkButton:SetPoint("RIGHT", 0, 0)
 	frame.sellJunkButton:SetScript("OnClick", function()
 		if self.views.sell and self.views.sell.SellJunk then
 			self.views.sell:SellJunk()
+		end
+	end)
+
+	frame.repairAllButton = Factory.CreateButton(frame.headerActions, L.REPAIR_ALL or "Repair All", 90, 22)
+	frame.repairAllButton:SetPoint("RIGHT", frame.sellJunkButton, "LEFT", -4, 0)
+	frame.repairAllButton:SetScript("OnClick", function()
+		if self.views.repair and self.views.repair.RepairAll then
+			self.views.repair:RepairAll(false)
+		end
+	end)
+
+	frame.repairGuildButton = Factory.CreateButton(frame.headerActions, L.REPAIR_GUILD or "Guild", 70, 22)
+	frame.repairGuildButton:SetPoint("RIGHT", frame.repairAllButton, "LEFT", -4, 0)
+	frame.repairGuildButton:SetScript("OnClick", function()
+		if self.views.repair and self.views.repair.RepairAll then
+			self.views.repair:RepairAll(true)
 		end
 	end)
 
@@ -284,7 +311,9 @@ function Controller:CreateFrame()
 
 	-- Restore last session or default
 	local savedTab = ns.DB.vendor.rememberTab or "buy"
-	if savedTab == "buy" or savedTab == "sell" or savedTab == "repair" then
+	if savedTab == "repair" then savedTab = "buy" end
+	
+	if savedTab == "buy" or savedTab == "sell" then
 		self:SetTab("main")
 		self:SetSubTab(savedTab)
 	else
@@ -316,12 +345,12 @@ function Controller:SetTab(tabId)
 
 	if tabId == "main" then
 		self.frame.subTabContainer:Show()
-		self.frame.sellJunkButton:Show()
+		self.frame.headerActions:Show()
 		-- Ensure a sub-tab is selected
 		self:SetSubTab(self.activeSubTab or "buy")
 	else
 		self.frame.subTabContainer:Hide()
-		self.frame.sellJunkButton:Hide()
+		self.frame.headerActions:Hide()
 		-- Hide all sub-views, show buyback
 		for id, view in pairs(self.views) do
 			if id == "buyback" then
@@ -414,7 +443,7 @@ function Controller:HandleInput(action)
 		self:CycleTab(1)
 		return true
 	elseif action == "cancel" then
-		self:CloseWindowAndInteraction()
+		self:Close("escape")
 		return true
 	end
 
