@@ -197,15 +197,11 @@ end
 function Compat.IsConsumable(itemInfo)
 	if not itemInfo then return false end
 	
-	-- 1. Fast path: Direct property check
+	-- 1. Extract identifier and check direct properties if itemInfo is already a resolved table
+	local identifier
 	if type(itemInfo) == "table" then
 		if itemInfo.classID == (Enum.ItemClass.Consumable or 0) then return true end
 		if itemInfo.isConsumable == true then return true end
-	end
-
-	-- 2. Identification path: hyperlink or ID
-	local identifier
-	if type(itemInfo) == "table" then
 		identifier = itemInfo.itemLink or itemInfo.itemID
 	elseif type(itemInfo) == "string" or type(itemInfo) == "number" then
 		identifier = itemInfo
@@ -213,16 +209,25 @@ function Compat.IsConsumable(itemInfo)
 
 	if not identifier then return false end
 
-	-- 3. Resolve using WoW APIs with safety checks
-	-- Attempt C_Item.GetItemInfoInstant first (Synchronous, does not wait for cache)
+	-- 2. Modern synchronous check (Retail 8.0+)
+	-- Fix for ISCONSUMABLE_ASSUMES_TABLE_RETURN_SHAPE_FROM_C_ITEM_GETITEMINFOINSTANT:
+	-- We explicitly check for table return and handle it gracefully if missing or different shape.
 	if C_Item and C_Item.GetItemInfoInstant then
 		local ok, info = pcall(C_Item.GetItemInfoInstant, identifier)
-		if ok and info and info.classID == (Enum.ItemClass.Consumable or 0) then
+		if ok and type(info) == "table" and info.classID == (Enum.ItemClass.Consumable or 0) then
 			return true
 		end
 	end
 
-	-- Fallback to legacy GetItemInfo (Asynchronous/Cache-dependent)
+	-- 3. Legacy synchronous check (Multi-return, used in Classic or old engine versions)
+	if GetItemInfoInstant then
+		local ok, _, _, _, _, _, classID = pcall(GetItemInfoInstant, identifier)
+		if ok and classID == (Enum.ItemClass.Consumable or 0) then
+			return true
+		end
+	end
+
+	-- 4. Final asynchronous fallback (Handles uncached data)
 	local ok, _, _, _, _, _, _, _, _, _, _, _, classID = pcall(GetItemInfo, identifier)
 	if ok and classID == (Enum.ItemClass.Consumable or 0) then
 		return true
