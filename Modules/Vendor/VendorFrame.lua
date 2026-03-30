@@ -12,11 +12,13 @@ local TAB_ORDER = { "buy", "sell", "buyback", "repair" }
 
 local function ResolveTabLabel(tabId)
 	if tabId == "buy" then
-		return _G.MERCHANT or _G.MERCHANT_BUY or L.BUY or "Buy"
+		-- Use specific 'Buy' label from globals first to avoid generic 'Merchant' title (Tab 1 default).
+		return _G.MERCHANT_BUY or _G.BUY or (MerchantFrameTab1 and MerchantFrameTab1:GetText()) or L.BUY or "Buy"
 	elseif tabId == "sell" then
 		return _G.SELL or L.SELL or "Sell"
 	elseif tabId == "buyback" then
-		return _G.BUYBACK or L.BUYBACK or "Buyback"
+		-- Native Merchant Tab 2 is semantically correct for 'Buyback' and preferred if available.
+		return (MerchantFrameTab2 and MerchantFrameTab2:GetText()) or _G.BUYBACK or L.BUYBACK or "Buyback"
 	elseif tabId == "repair" then
 		return _G.REPAIR or L.REPAIR or "Repair"
 	end
@@ -31,7 +33,7 @@ function Controller:OnSlashCommand(msg)
 	if msg == "" or msg == "show" then
 		self:ShowWindow()
 	elseif msg == "hide" or msg == "close" then
-		self.frame:Hide()
+		self:CloseWindowAndInteraction()
 	end
 end
 
@@ -44,10 +46,12 @@ function Controller:OnEvent(event, ...)
 			self:RefreshActiveView()
 		end)
 	elseif event == "MERCHANT_CLOSED" then
+		self._closing = true -- Temporary guard to prevent OnHide cycles
 		if self.frame then
 			self.frame:Hide()
 		end
 		self:ReleaseMerchantFrame()
+		self._closing = false
 	elseif event == "MERCHANT_UPDATE" then
 		self:RefreshActiveView()
 	elseif event == "BAG_UPDATE_DELAYED" then
@@ -83,6 +87,23 @@ function Controller:ReleaseMerchantFrame()
 	end
 end
 
+function Controller:CloseWindowAndInteraction()
+	if self._closing then return end
+	self._closing = true
+	
+	ns.Debug("Closing Vendor interaction...")
+	if self.frame and self.frame:IsShown() then
+		self.frame:Hide()
+	end
+	
+	if CloseMerchant then
+		CloseMerchant()
+	end
+	
+	self:ReleaseMerchantFrame()
+	self._closing = false
+end
+
 function Controller:OnPlayerLogin()
 	ns.Debug("OnPlayerLogin: Initializing Better Control Vendor...")
 	ns.InputAdapter:DetectInitialMode()
@@ -112,12 +133,15 @@ function Controller:CreateFrame()
 		frame.input:SetText("Input: " .. label)
 	end)
 
-	frame.subtitle = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	frame.subtitle:SetPoint("TOPLEFT", 18, -21)
-	frame.subtitle:SetPoint("TOPRIGHT", -140, -21)
-	frame.subtitle:SetJustifyH("LEFT")
-	frame.subtitle:SetText(L.APP_SUBTITLE)
-	frame.subtitle:SetAlpha(0.8)
+	frame:SetScript("OnHide", function()
+		self:CloseWindowAndInteraction()
+	end)
+
+	if frame.CloseButton then
+		frame.CloseButton:SetScript("OnClick", function()
+			self:CloseWindowAndInteraction()
+		end)
+	end
 
 	frame.device = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	frame.device:SetPoint("TOPRIGHT", -48, -38)
@@ -186,11 +210,13 @@ function Controller:CreateFrame()
 	frame.toggleBlizz:SetPoint("TOPRIGHT", frame.CloseButton, "TOPLEFT", -8, 0)
 	frame.toggleBlizz:SetScript("OnClick", function()
 		ns.Debug("Switching to Blizzard UI. Use /bcv to return.")
+		self._closing = true -- Prevent OnHide from terminating the interaction
 		self.frame:Hide()
 		self:ReleaseMerchantFrame()
 		if MerchantFrame then
 			MerchantFrame:SetAlpha(1)
 		end
+		self._closing = false
 	end)
 
 	self.views = {}
@@ -306,7 +332,7 @@ function Controller:HandleInput(action)
 		self:CycleTab(1)
 		return true
 	elseif action == "cancel" then
-		self.frame:Hide()
+		self:CloseWindowAndInteraction()
 		return true
 	end
 
