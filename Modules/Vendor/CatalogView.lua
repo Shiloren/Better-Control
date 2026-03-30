@@ -92,9 +92,17 @@ function CatalogView:New(parent, owner)
 	for rowIndex = 1, tokens.list.visibleRows do
 		local row = Factory.CreateRow(frame.list, tokens.panels.leftWidth - 20, tokens.list.rowHeight)
 		row:SetPoint("TOPLEFT", 10, -10 - ((rowIndex - 1) * tokens.list.rowHeight))
-		row:SetScript("OnClick", function(selfRow)
-			frame.focus:SetIndex(selfRow.itemPosition)
-			frame.owner:SetSelectedBuyItem(frame.focus:GetItem())
+		row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+		row:SetScript("OnClick", function(selfRow, button)
+			if button == "RightButton" and ns.InputAdapter:GetMode() == "mouse" then
+				local item = frame.items[selfRow.itemPosition]
+				if item then
+					frame.owner:PurchaseImmediately(item)
+				end
+			else
+				frame.focus:SetIndex(selfRow.itemPosition)
+				frame.owner:SetSelectedBuyItem(frame.focus:GetItem())
+			end
 		end)
 		row:SetScript("OnMouseWheel", function(_, delta)
 			frame:HandleAction(delta < 0 and "down" or "up")

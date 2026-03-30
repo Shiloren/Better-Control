@@ -309,6 +309,12 @@ function Controller:StartSelectedPurchase()
 	end
 end
 
+function Controller:PurchaseImmediately(item)
+	if self.views.buy and self.views.buy.flow then
+		self.views.buy.flow:DirectPurchase(item)
+	end
+end
+
 function Controller:RequestPurchase(item, quantity)
 	if not item or not item.index then return false, "No item" end
 	

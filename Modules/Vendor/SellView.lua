@@ -45,6 +45,12 @@ function SellView:New(parent, owner)
 	frame.empty:SetText(L.STATUS_SELL_EMPTY)
 	frame.empty:Hide()
 
+	frame.sellJunkAction = Factory.CreateButton(frame.left, L.SELL_JUNK, 120, 24)
+	frame.sellJunkAction:SetPoint("TOPRIGHT", -14, -10)
+	frame.sellJunkAction:SetScript("OnClick", function()
+		frame:SellJunk()
+	end)
+
 	for rowIndex = 1, tokens.list.visibleRows do
 		local row = Factory.CreateRow(frame.left, 410, tokens.list.rowHeight)
 		row:SetPoint("TOPLEFT", 10, -40 - ((rowIndex - 1) * tokens.list.rowHeight))

@@ -137,11 +137,33 @@ function BuyFlow:New(parent, owner)
 	frame.queueStatus:SetJustifyH("LEFT")
 	frame.queueStatus:SetText(L.STATUS_IDLE)
 
-	frame.costs = frame.panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	frame.costs:SetPoint("TOPLEFT", frame.queueStatus, "BOTTOMLEFT", 0, -12)
+	frame.costs = frame.panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightMedium")
+	frame.costs:SetPoint("TOPLEFT", frame.queueStatus, "BOTTOMLEFT", 0, -14)
 	frame.costs:SetPoint("RIGHT", -14, 0)
 	frame.costs:SetJustifyH("LEFT")
 	frame.costs:SetText("")
+
+	-- Mouse-only Keyboard Quantity Entry
+	frame.valueEdit = CreateFrame("EditBox", nil, frame.panel, "InputBoxTemplate")
+	frame.valueEdit:SetPoint("TOPLEFT", frame.valueLabel, "BOTTOMLEFT", 6, -8)
+	frame.valueEdit:SetSize(140, 32)
+	frame.valueEdit:SetFontObject("QuestFont_Enormous")
+	frame.valueEdit:SetNumeric(true)
+	frame.valueEdit:SetAutoFocus(false)
+	frame.valueEdit:SetScript("OnEnterPressed", function(eb) eb:ClearFocus() end)
+	frame.valueEdit:SetScript("OnTextChanged", function(eb, userInput)
+		if not userInput then return end
+		local val = tonumber(eb:GetText()) or 0
+		frame.value = val
+		frame:RefreshCostsOnly()
+	end)
+	frame.valueEdit:SetScript("OnEditFocusLost", function(eb)
+		frame:AdjustBundles(0) -- Triggers clamping/rounding and full refresh
+	end)
+
+	ns.InputAdapter:OnModeChanged(function()
+		frame:Refresh()
+	end)
 
 	return frame
 end
@@ -205,6 +227,19 @@ function BuyFlow:AdjustBundles(multiplier)
 	self:Refresh()
 end
 
+function BuyFlow:RefreshCostsOnly()
+	local item = self.item
+	if not item then
+		self.costs:SetText("")
+		return
+	end
+
+	local resolved = self:GetResolvedPurchaseQuantity()
+	local affordable = Utils.GetAffordableQuantity(item)
+	self.purchaseHint:SetText(string.format("Will buy %d now. Max immediate batch %d.", resolved, affordable))
+	self.costs:SetText(string.format("Purchase cost: |cffffffff%s|r", Utils.DescribeCosts(item, resolved)))
+end
+
 function BuyFlow:SetMax()
 	if not self.item then
 		return
@@ -234,6 +269,41 @@ function BuyFlow:PromptPurchase(quantity)
 	})
 end
 
+function BuyFlow:ShouldWarnBeforePurchase(item, quantity)
+	if not item then return false end
+
+	-- Warn for currencies or items in extended costs
+	if #item.extendedCosts > 0 then
+		for _, cost in ipairs(item.extendedCosts) do
+			if cost.currencyName or cost.link then
+				return true
+			end
+		end
+	end
+
+	-- Warn for high gold costs (threshold: 5000g = 50,000,000 copper)
+	local threshold = 50000000
+	local multiplier = quantity / math.max(1, item.unitSize or 1)
+	local totalGold = (item.price or 0) * multiplier
+	if totalGold >= threshold then
+		return true
+	end
+
+	return false
+end
+
+function BuyFlow:DirectPurchase(item)
+	if not item then return end
+	local quantity = item.unitSize or 1
+	if self:ShouldWarnBeforePurchase(item, quantity) then
+		-- Switch to item so they see what's happening
+		self:SetItem(item)
+		self:PromptPurchase(quantity)
+	else
+		self.owner.purchaseQueue:Start(item, quantity)
+	end
+end
+
 function BuyFlow:StartPurchase()
 	local quantity = self:GetResolvedPurchaseQuantity()
 	if not self.item or quantity <= 0 then
@@ -241,8 +311,7 @@ function BuyFlow:StartPurchase()
 		return
 	end
 
-	local requiresPrompt = (self.item.price or 0) >= (MERCHANT_HIGH_PRICE_COST or 1500000)
-	if #self.item.extendedCosts > 0 or self.item.isRefundable == false or requiresPrompt then
+	if self:ShouldWarnBeforePurchase(self.item, quantity) then
 		self:PromptPurchase(quantity)
 	else
 		self.owner.purchaseQueue:Start(self.item, quantity)
@@ -289,6 +358,10 @@ function BuyFlow:Refresh()
 	local affordable = Utils.GetAffordableQuantity(item)
 	local resolved = self:GetResolvedPurchaseQuantity()
 
+	local isMouse = ns.InputAdapter:GetMode() == "mouse"
+	self.valueText:SetShown(not isMouse)
+	self.valueEdit:SetShown(isMouse)
+
 	self.modePurchase:SetEnabled(self.quantityMode ~= "purchase")
 	self.modeTotal:SetEnabled(self.quantityMode ~= "total")
 	self.startButton:SetEnabled(resolved >= item.unitSize)
@@ -301,9 +374,17 @@ function BuyFlow:Refresh()
 	self.title:SetText(item.name)
 	self.icon:SetTexture(item.icon or 134400)
 	self.summary:SetText(string.format("%s: %d\n%s: %d\n%s: %s", L.OWNED, owned, L.BUNDLE, item.unitSize, L.PRICE, Utils.DescribeCosts(item, item.unitSize)))
-	self.valueText:SetText(BreakUpLargeNumbers(self.value))
+	
+	if isMouse then
+		if not self.valueEdit:HasFocus() then
+			self.valueEdit:SetText(self.value)
+		end
+	else
+		self.valueText:SetText(BreakUpLargeNumbers(self.value))
+	end
+
 	self.purchaseHint:SetText(string.format("Will buy %d now. Max immediate batch %d.", resolved, affordable))
-	self.costs:SetText(string.format("Target cost: %s", Utils.DescribeCosts(item, resolved)))
+	self.costs:SetText(string.format("Purchase cost: |cffffffff%s|r", Utils.DescribeCosts(item, resolved)))
 end
 
 function BuyFlow:HandleAction(action)
