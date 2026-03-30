@@ -231,6 +231,26 @@ function Controller:CreateFrame()
 	frame.content = CreateFrame("Frame", nil, frame.Inset)
 	frame.content:SetAllPoints()
 
+	-- Explicit Container Regions for Unified Main Layout
+	frame.regions = {}
+	-- Left Column: Catalog and Sell List
+	frame.regions.catalog = CreateFrame("Frame", nil, frame.content)
+	frame.regions.catalog:SetSize(tokens.panels.leftWidth, 210)
+	frame.regions.catalog:SetPoint("TOPLEFT", 4, -42)
+	
+	frame.regions.sellList = CreateFrame("Frame", nil, frame.content)
+	frame.regions.sellList:SetSize(tokens.panels.leftWidth, 210)
+	frame.regions.sellList:SetPoint("TOPLEFT", 4, -266)
+	
+	-- Right Column: Buy Flow Detail and Sell Contextual Actions
+	frame.regions.buyFlow = CreateFrame("Frame", nil, frame.content)
+	frame.regions.buyFlow:SetSize(tokens.panels.rightWidth, 210)
+	frame.regions.buyFlow:SetPoint("TOPRIGHT", -4, -42)
+	
+	frame.regions.sellDetail = CreateFrame("Frame", nil, frame.content)
+	frame.regions.sellDetail:SetSize(tokens.panels.rightWidth, 210)
+	frame.regions.sellDetail:SetPoint("TOPRIGHT", -4, -266)
+
 	frame.footer = Factory.CreateFooter(frame)
 	frame.footer:SetPoint("BOTTOMLEFT", 4, 4)
 	frame.footer:SetPoint("BOTTOMRIGHT", -4, 4)
@@ -269,25 +289,25 @@ function Controller:CreateFrame()
 		self._closing = false
 	end)
 
-	-- Safe creation of views using Mixins
+	-- Safe creation of views using Mixins into deterministic regions
 	xpcall(function()
-		-- Catalog and BuyFlow (Top Half / Global)
-		self.views.catalog = ns.VendorCatalogView:New(frame.content, self, 4, true)
-		self.views.buyFlow = ns.VendorBuyFlow:New(frame.content, self, true)
+		-- Catalog View hosts the Merchant Item List
+		self.views.catalog = ns.VendorCatalogView:New(frame.regions.catalog, self, 4, true)
 		
-		-- Sell View (Bottom Half)
-		self.views.sell = ns.VendorSellView:New(frame.content, self, 4, true)
+		-- BuyFlow hosts the Details and Purchase Flow for Merchant Items
+		self.views.buyFlow = ns.VendorBuyFlow:New(frame.regions.buyFlow, self, true)
 		
-		-- Full Screen Views (Tabs)
-		self.views.buyback = ns.VendorBuybackView:New(frame.content, self, 8)
+		-- SellView split across two regions: List and Detail
+		self.views.sell = ns.VendorSellView:New(frame.regions.sellList, self, 4, true, frame.regions.sellDetail)
+		
+		-- Full Screen Views (Tabs) - Still direct in content as they own the space when active
+		self.views.buyback = ns.VendorBuybackView:New(frame.content, self, math.floor(434/tokens.list.rowHeight))
 		self.views.repair = ns.VendorRepairView:New(frame.content, self)
 		
-		-- Initial layout adjustments for unified mode
-		-- 434px total height. 210px each + 14px spacer.
-		self.views.catalog:SetPoint("TOPLEFT", 4, -42)
-		self.views.sell:SetPoint("TOPLEFT", 4, -266)
-		self.views.buyFlow:SetPoint("TOPRIGHT", -4, -42)
-		self.views.sell:SetPoint("TOPRIGHT", -4, -266) -- Re-anchoring the right component as well
+		-- Initial setup: Ensure all embeddable parts follow their region's constraints
+		self.views.catalog:SetAllPoints()
+		self.views.buyFlow:SetAllPoints()
+		self.views.sell:SetAllPoints() -- Host frame handles cross-communication
 	end, function(err) 
 		ns.Debug("CRITICAL ERROR during View Creation: " .. tostring(err)) 
 	end)
@@ -323,18 +343,21 @@ function Controller:SetTab(tabId)
 	if tabId == "main" then
 		self.activeList = self.activeList or "catalog"
 		self.frame.headerActions:Show()
-		self.views.catalog:Show()
-		self.views.buyFlow:Show()
-		self.views.sell:Show()
+		-- Show all regions belonging to the unified surface
+		for _, region in pairs(self.frame.regions) do region:Show() end
 		self.views.buyback:Hide()
 		self.views.repair:Hide()
 	else
 		self.frame.headerActions:Hide()
-		self.views.catalog:Hide()
-		self.views.buyFlow:Hide()
-		self.views.sell:Hide()
-		self.views.buyback:Show()
-		self.views.repair:Hide()
+		-- Hide all regions before showing a whole-frame tab
+		for _, region in pairs(self.frame.regions) do region:Hide() end
+		if tabId == "buyback" then
+			self.views.buyback:Show()
+			self.views.repair:Hide()
+		elseif tabId == "repair" then -- Handled by separate view if direct nav is used
+			self.views.buyback:Hide()
+			self.views.repair:Show()
+		end
 	end
 
 	self:RefreshActiveView()
@@ -388,9 +411,22 @@ function Controller:HandleInput(action)
 			return true
 		end
 
-		local target = (self.activeList == "sell") and self.views.sell or self.views.catalog
-		if target and target.HandleAction and target:HandleAction(action) then
+		local targetList = (self.activeList == "sell") and self.views.sell or self.views.catalog
+		if targetList and targetList.HandleAction and targetList:HandleAction(action) then
 			return true
+		end
+
+		-- If the active list didn't handle the action (e.g. quantity adjust, quick confirm, max)
+		-- give the relevant detail panel a chance to handle it.
+		if self.activeList == "catalog" and self.views.buyFlow and self.views.buyFlow.HandleAction then
+			if self.views.buyFlow:HandleAction(action) then
+				return true
+			end
+		elseif self.activeList == "sell" and self.views.sell and self.views.sell.HandleAction then
+			-- Logic for sell actions (handled inside SellView detail part)
+			if self.views.sell:HandleAction(action) then
+				return true
+			end
 		end
 	elseif self.activeTab == "buyback" then
 		if self.views.buyback and self.views.buyback.HandleAction and self.views.buyback:HandleAction(action) then

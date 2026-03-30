@@ -30,10 +30,15 @@ function BuyFlow:New(parent, owner, compact)
 	frame.item = nil
 	frame.quantityMode = ns.DB.vendor.lastQuantityMode or "purchase"
 	frame.value = 0
-	frame:SetAllPoints()
+ -- Layout is handled by the parent container
 
-	frame.panel = Factory.CreateInset(frame, 278, compact and 210 or 434)
-	frame.panel:SetPoint("TOPRIGHT", -4, compact and 0 or -42)
+	if parent and compact then
+		frame.panel = Factory.CreateInset(frame, 278, 210)
+		frame.panel:SetAllPoints() -- Fill the region
+	else
+		frame.panel = Factory.CreateInset(frame, 278, compact and 210 or 434)
+		frame.panel:SetPoint("TOPRIGHT", -4, compact and 0 or -42)
+	end
 
 	frame.title = frame.panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	frame.title:SetPoint("TOPLEFT", 14, -12)

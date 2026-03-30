@@ -16,11 +16,12 @@ local function makeKey(entry)
 	return string.format("%d:%d", entry.bag, entry.slot)
 end
 
-function SellView:New(parent, owner, numRows, compact)
+function SellView:New(parent, owner, numRows, compact, detailParent)
 	numRows = numRows or tokens.list.visibleRows
 	local frame = CreateFrame("Frame", nil, parent)
 	ns.Mixin(frame, self)
 	frame.owner = owner
+	frame.compact = compact
 	frame.items = {}
 	frame.selected = {}
 	frame.batchTask = nil
@@ -29,14 +30,26 @@ function SellView:New(parent, owner, numRows, compact)
 		frame:RefreshRows()
 	end)
 	frame.rows = {}
-	frame:SetAllPoints()
+ -- Layout and parenting handled by VendorFrame regions
 
+	-- Create/Use List Container
 	local insetHeight = compact and 210 or 434
-	frame.left = Factory.CreateInset(frame, 430, insetHeight)
-	frame.left:SetPoint("TOPLEFT", 4, compact and 0 or -42)
+	if parent then
+		frame.left = Factory.CreateInset(parent, 430, insetHeight)
+		frame.left:SetAllPoints() -- Fill its region
+	else
+		frame.left = Factory.CreateInset(frame, 430, insetHeight)
+		frame.left:SetPoint("TOPLEFT", 4, compact and 0 or -42)
+	end
 
-	frame.right = Factory.CreateInset(frame, 268, insetHeight)
-	frame.right:SetPoint("TOPRIGHT", -4, compact and 0 or -42)
+	-- Create/Use Detail Container
+	if detailParent then
+		frame.right = Factory.CreateInset(detailParent, 268, insetHeight)
+		frame.right:SetAllPoints() -- Fill its region
+	else
+		frame.right = Factory.CreateInset(frame, 268, insetHeight)
+		frame.right:SetPoint("TOPRIGHT", -4, compact and 0 or -42)
+	end
 
 	frame.title = frame.left:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	frame.title:SetPoint("TOPLEFT", 14, -12)
@@ -355,8 +368,10 @@ function SellView:HandleAction(action)
 	elseif action == "down" then
 		self.focus:Move(1)
 	elseif action == "pageDown" then
+		if self.compact then return false end
 		self.focus:Page(-1)
 	elseif action == "pageUp" then
+		if self.compact then return false end
 		self.focus:Page(1)
 	elseif action == "confirm" then
 		self:SellFocused(1)

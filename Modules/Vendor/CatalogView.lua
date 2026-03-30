@@ -47,6 +47,7 @@ function CatalogView:New(parent, owner, numRows, compact)
 	ns.Mixin(frame, self)
 	
 	frame.owner = owner
+	frame.compact = compact
 	frame.items = {}
 	frame.filter = ns.DB.vendor.defaultFilter or "all"
 	frame.rows = {}
@@ -55,7 +56,7 @@ function CatalogView:New(parent, owner, numRows, compact)
 		frame:RefreshRows()
 	end)
 
-	frame:SetAllPoints()
+ -- Layout is handled by the parent container
 
 	frame.header = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	frame.header:SetPoint("TOPLEFT", 14, -12)
@@ -83,8 +84,14 @@ function CatalogView:New(parent, owner, numRows, compact)
 		previousButton = button
 	end
 
-	frame.list = Factory.CreateInset(frame, tokens.panels.leftWidth, compact and 210 or 400)
-	frame.list:SetPoint("TOPLEFT", frame.filters, "BOTTOMLEFT", 0, compact and -4 or -8)
+	if parent and compact then
+		frame.list = Factory.CreateInset(frame, tokens.panels.leftWidth, 210)
+		frame.list:SetPoint("TOPLEFT", frame.filters, "BOTTOMLEFT", 0, -4)
+		frame.list:SetPoint("BOTTOMRIGHT")
+	else
+		frame.list = Factory.CreateInset(frame, tokens.panels.leftWidth, compact and 210 or 400)
+		frame.list:SetPoint("TOPLEFT", frame.filters, "BOTTOMLEFT", 0, compact and -4 or -8)
+	end
 
 	frame.empty = frame.list:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	frame.empty:SetPoint("CENTER")
@@ -234,8 +241,10 @@ function CatalogView:HandleAction(action)
 	elseif action == "down" then
 		self.focus:Move(1)
 	elseif action == "pageDown" then
+		if self.compact then return false end
 		self.focus:Page(-1)
 	elseif action == "pageUp" then
+		if self.compact then return false end
 		self.focus:Page(1)
 	elseif action == "confirm" then
 		self.owner:StartSelectedPurchase()
