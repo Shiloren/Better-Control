@@ -23,7 +23,7 @@ local BuyFlow = {}
 BuyFlow.__index = BuyFlow
 ns.VendorBuyFlow = BuyFlow
 
-function BuyFlow:New(parent, owner)
+function BuyFlow:New(parent, owner, compact)
 	local frame = CreateFrame("Frame", nil, parent)
 	ns.Mixin(frame, self)
 	frame.owner = owner
@@ -32,8 +32,8 @@ function BuyFlow:New(parent, owner)
 	frame.value = 0
 	frame:SetAllPoints()
 
-	frame.panel = Factory.CreateInset(frame, 278, 434)
-	frame.panel:SetPoint("TOPRIGHT", -4, -42)
+	frame.panel = Factory.CreateInset(frame, 278, compact and 210 or 434)
+	frame.panel:SetPoint("TOPRIGHT", -4, compact and 0 or -42)
 
 	frame.title = frame.panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	frame.title:SetPoint("TOPLEFT", 14, -12)

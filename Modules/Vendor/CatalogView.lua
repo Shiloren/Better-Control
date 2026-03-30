@@ -41,7 +41,8 @@ local function filterItem(filterId, item)
 	return true
 end
 
-function CatalogView:New(parent, owner)
+function CatalogView:New(parent, owner, numRows, compact)
+	numRows = numRows or tokens.list.visibleRows
 	local frame = CreateFrame("Frame", nil, parent)
 	ns.Mixin(frame, self)
 	
@@ -49,7 +50,7 @@ function CatalogView:New(parent, owner)
 	frame.items = {}
 	frame.filter = ns.DB.vendor.defaultFilter or "all"
 	frame.rows = {}
-	frame.focus = ns.FocusList:New(tokens.list.visibleRows)
+	frame.focus = ns.FocusList:New(numRows)
 	frame.focus:SetOnChanged(function()
 		frame:RefreshRows()
 	end)
@@ -62,7 +63,7 @@ function CatalogView:New(parent, owner)
 	frame.header:Hide() -- Hide redundant header in unified mode
 
 	frame.filters = CreateFrame("Frame", nil, frame)
-	frame.filters:SetPoint("TOPLEFT", 14, -32) -- Shifted down to avoid sub-tabs
+	frame.filters:SetPoint("TOPLEFT", 14, compact and -4 or -32)
 	frame.filters:SetSize(tokens.panels.leftWidth - 28, 22)
 
 	frame.filterButtons = {}
@@ -82,15 +83,15 @@ function CatalogView:New(parent, owner)
 		previousButton = button
 	end
 
-	frame.list = Factory.CreateInset(frame, tokens.panels.leftWidth, 400)
-	frame.list:SetPoint("TOPLEFT", frame.filters, "BOTTOMLEFT", 0, -8)
+	frame.list = Factory.CreateInset(frame, tokens.panels.leftWidth, compact and 210 or 400)
+	frame.list:SetPoint("TOPLEFT", frame.filters, "BOTTOMLEFT", 0, compact and -4 or -8)
 
 	frame.empty = frame.list:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	frame.empty:SetPoint("CENTER")
 	frame.empty:SetText(L.STATUS_NO_SELECTION)
 	frame.empty:Hide()
 
-	for rowIndex = 1, tokens.list.visibleRows do
+	for rowIndex = 1, numRows do
 		local row = Factory.CreateRow(frame.list, tokens.panels.leftWidth - 20, tokens.list.rowHeight)
 		row:SetPoint("TOPLEFT", 10, -10 - ((rowIndex - 1) * tokens.list.rowHeight))
 		row:RegisterForClicks("LeftButtonUp", "RightButtonUp")

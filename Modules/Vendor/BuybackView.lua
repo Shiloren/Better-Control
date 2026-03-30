@@ -8,13 +8,14 @@ local BuybackView = {}
 BuybackView.__index = BuybackView
 ns.VendorBuybackView = BuybackView
 
-function BuybackView:New(parent, owner)
+function BuybackView:New(parent, owner, numRows)
+	numRows = numRows or tokens.list.visibleRows
 	local frame = CreateFrame("Frame", nil, parent)
 	ns.Mixin(frame, self)
 	frame.owner = owner
 	frame.items = {}
 	frame.rows = {}
-	frame.focus = ns.FocusList:New(tokens.list.visibleRows)
+	frame.focus = ns.FocusList:New(numRows)
 	frame.focus:SetOnChanged(function()
 		frame:RefreshRows()
 	end)
@@ -35,7 +36,7 @@ function BuybackView:New(parent, owner)
 	frame.empty:SetText(L.STATUS_BUYBACK_EMPTY)
 	frame.empty:Hide()
 
-	for rowIndex = 1, tokens.list.visibleRows do
+	for rowIndex = 1, numRows do
 		local row = Factory.CreateRow(frame.left, 410, tokens.list.rowHeight)
 		row:SetPoint("TOPLEFT", 10, -40 - ((rowIndex - 1) * tokens.list.rowHeight))
 		row:SetScript("OnClick", function(selfRow)

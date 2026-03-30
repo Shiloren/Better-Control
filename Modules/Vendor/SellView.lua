@@ -16,25 +16,27 @@ local function makeKey(entry)
 	return string.format("%d:%d", entry.bag, entry.slot)
 end
 
-function SellView:New(parent, owner)
+function SellView:New(parent, owner, numRows, compact)
+	numRows = numRows or tokens.list.visibleRows
 	local frame = CreateFrame("Frame", nil, parent)
 	ns.Mixin(frame, self)
 	frame.owner = owner
 	frame.items = {}
 	frame.selected = {}
 	frame.batchTask = nil
-	frame.focus = ns.FocusList:New(tokens.list.visibleRows)
+	frame.focus = ns.FocusList:New(numRows)
 	frame.focus:SetOnChanged(function()
 		frame:RefreshRows()
 	end)
 	frame.rows = {}
 	frame:SetAllPoints()
 
-	frame.left = Factory.CreateInset(frame, 430, 434)
-	frame.left:SetPoint("TOPLEFT", 4, -42)
+	local insetHeight = compact and 210 or 434
+	frame.left = Factory.CreateInset(frame, 430, insetHeight)
+	frame.left:SetPoint("TOPLEFT", 4, compact and 0 or -42)
 
-	frame.right = Factory.CreateInset(frame, 268, 434)
-	frame.right:SetPoint("TOPRIGHT", -4, -42)
+	frame.right = Factory.CreateInset(frame, 268, insetHeight)
+	frame.right:SetPoint("TOPRIGHT", -4, compact and 0 or -42)
 
 	frame.title = frame.left:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	frame.title:SetPoint("TOPLEFT", 14, -12)
@@ -53,9 +55,9 @@ function SellView:New(parent, owner)
 		frame:SellJunk()
 	end)
 
-	for rowIndex = 1, tokens.list.visibleRows do
+	for rowIndex = 1, numRows do
 		local row = Factory.CreateRow(frame.left, 410, tokens.list.rowHeight)
-		row:SetPoint("TOPLEFT", 10, -40 - ((rowIndex - 1) * tokens.list.rowHeight))
+		row:SetPoint("TOPLEFT", 10, -10 - ((rowIndex - 1) * tokens.list.rowHeight))
 		row.toggle = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
 		row.toggle:SetPoint("LEFT", row.stock, "LEFT", -22, 0)
 		row.toggle:SetText("")
