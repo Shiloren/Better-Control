@@ -39,6 +39,7 @@ function SellView:New(parent, owner)
 	frame.title = frame.left:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	frame.title:SetPoint("TOPLEFT", 14, -12)
 	frame.title:SetText(L.SELL)
+	frame.title:Hide() -- Hide redundant header
 
 	frame.empty = frame.left:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	frame.empty:SetPoint("CENTER")
@@ -47,6 +48,7 @@ function SellView:New(parent, owner)
 
 	frame.sellJunkAction = Factory.CreateButton(frame.left, L.SELL_JUNK, 120, 24)
 	frame.sellJunkAction:SetPoint("TOPRIGHT", -14, -10)
+	frame.sellJunkAction:Hide() -- Hide redundant button
 	frame.sellJunkAction:SetScript("OnClick", function()
 		frame:SellJunk()
 	end)

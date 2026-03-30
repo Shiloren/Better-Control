@@ -59,9 +59,10 @@ function CatalogView:New(parent, owner)
 	frame.header = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	frame.header:SetPoint("TOPLEFT", 14, -12)
 	frame.header:SetText(L.BUY)
+	frame.header:Hide() -- Hide redundant header in unified mode
 
 	frame.filters = CreateFrame("Frame", nil, frame)
-	frame.filters:SetPoint("TOPLEFT", frame.header, "BOTTOMLEFT", 0, -8)
+	frame.filters:SetPoint("TOPLEFT", 14, -32) -- Shifted down to avoid sub-tabs
 	frame.filters:SetSize(tokens.panels.leftWidth - 28, 22)
 
 	frame.filterButtons = {}

@@ -8,16 +8,17 @@ local Input = ns.InputAdapter
 local Controller = {}
 ns.VendorFrame = Controller
 
-local TAB_ORDER = { "buy", "sell", "buyback", "repair" }
+local TAB_ORDER = { "main", "buyback" }
+local SUB_TAB_ORDER = { "buy", "sell", "repair" }
 
 local function ResolveTabLabel(tabId)
-	if tabId == "buy" then
-		-- Use specific 'Buy' label from globals first to avoid generic 'Merchant' title (Tab 1 default).
-		return _G.MERCHANT_BUY or _G.BUY or (MerchantFrameTab1 and MerchantFrameTab1:GetText()) or L.BUY or "Buy"
+	if tabId == "main" then
+		return _G.MERCHANT or L.MERCHANT or "Merchant"
+	elseif tabId == "buy" then
+		return _G.MERCHANT_BUY or _G.BUY or L.BUY or "Buy"
 	elseif tabId == "sell" then
 		return _G.SELL or L.SELL or "Sell"
 	elseif tabId == "buyback" then
-		-- Native Merchant Tab 2 is semantically correct for 'Buyback' and preferred if available.
 		return (MerchantFrameTab2 and MerchantFrameTab2:GetText()) or _G.BUYBACK or L.BUYBACK or "Buyback"
 	elseif tabId == "repair" then
 		return _G.REPAIR or L.REPAIR or "Repair"
@@ -91,14 +92,13 @@ function Controller:CloseWindowAndInteraction()
 	if self._closing then return end
 	self._closing = true
 	
-	ns.Debug("Closing Vendor interaction...")
+	ns.Debug("Closing Vendor interaction via canonical helper...")
 	if self.frame and self.frame:IsShown() then
 		self.frame:Hide()
 	end
 	
-	if CloseMerchant then
-		CloseMerchant()
-	end
+	-- Canonical compatibility close: Handles Midnight (C_MerchantFrame) and Legacy
+	ns.Compat.CloseMerchantInteraction()
 	
 	self:ReleaseMerchantFrame()
 	self._closing = false
@@ -159,12 +159,11 @@ function Controller:CreateFrame()
 		frame.tabsById[tabId] = tab
 	end
 
-	-- Secondary loop for positioning (requires tabsById to be populated)
+	-- Positioning for Main Tabs
 	for tabIndex, tabId in ipairs(TAB_ORDER) do
 		local tab = frame.tabsById[tabId]
 		if tab then
 			if tabIndex == 1 then
-				-- Shifted right to 62 to clear provide safe spacing from portrait
 				tab:SetPoint("BOTTOMLEFT", frame.Inset, "TOPLEFT", 62, 2)
 			else
 				local prevTabId = TAB_ORDER[tabIndex - 1]
@@ -176,6 +175,36 @@ function Controller:CreateFrame()
 		end
 	end
 	
+	-- Sub-Navigation for Main surface (Buy/Sell/Repair)
+	frame.subTabsById = {}
+	frame.SubTabs = {}
+	frame.subTabContainer = CreateFrame("Frame", nil, frame)
+	frame.subTabContainer:SetSize(400, 30)
+	frame.subTabContainer:SetPoint("TOPLEFT", frame.Inset, "TOPLEFT", 10, -5)
+	
+	for subIndex, subId in ipairs(SUB_TAB_ORDER) do
+		local subTab = Factory.CreateButton(frame.subTabContainer, ResolveTabLabel(subId), 80, 22)
+		if subIndex == 1 then
+			subTab:SetPoint("LEFT", 0, 0)
+		else
+			subTab:SetPoint("LEFT", frame.SubTabs[subIndex-1], "RIGHT", 4, 0)
+		end
+		subTab:SetScript("OnClick", function()
+			self:SetSubTab(subId)
+		end)
+		frame.SubTabs[subIndex] = subTab
+		frame.subTabsById[subId] = subTab
+	end
+
+	-- Global "Sell Junk" button for the main surface
+	frame.sellJunkButton = Factory.CreateButton(frame, L.SELL_JUNK or "Sell Junk", 100, 22)
+	frame.sellJunkButton:SetPoint("TOPRIGHT", frame.Inset, "TOPRIGHT", -10, -5)
+	frame.sellJunkButton:SetScript("OnClick", function()
+		if self.views.sell and self.views.sell.SellJunk then
+			self.views.sell:SellJunk()
+		end
+	end)
+
 	frame.numTabs = #TAB_ORDER
 
 	frame.content = CreateFrame("Frame", nil, frame.Inset)
@@ -253,12 +282,27 @@ function Controller:CreateFrame()
 		self:HandleInput(action)
 	end
 
-	self:SetTab(ns.DB.vendor.rememberTab or "buy")
+	-- Restore last session or default
+	local savedTab = ns.DB.vendor.rememberTab or "buy"
+	if savedTab == "buy" or savedTab == "sell" or savedTab == "repair" then
+		self:SetTab("main")
+		self:SetSubTab(savedTab)
+	else
+		self:SetTab(savedTab)
+	end
+	
 	ns.Debug("CreateFrame: Complete")
 end
 
 function Controller:SetTab(tabId)
 	if not self.frame then return end
+	
+	-- Map 'buy', 'sell', 'repair' legacy values to 'main'
+	if tabId == "buy" or tabId == "sell" or tabId == "repair" then
+		self.activeSubTab = tabId
+		tabId = "main"
+	end
+
 	self.activeTab = tabId
 	ns.DB.vendor.rememberTab = tabId
 
@@ -270,25 +314,55 @@ function Controller:SetTab(tabId)
 		end
 	end
 
-	for id, view in pairs(self.views) do
-		if id == tabId then
-			view:Show()
-		else
-			view:Hide()
+	if tabId == "main" then
+		self.frame.subTabContainer:Show()
+		self.frame.sellJunkButton:Show()
+		-- Ensure a sub-tab is selected
+		self:SetSubTab(self.activeSubTab or "buy")
+	else
+		self.frame.subTabContainer:Hide()
+		self.frame.sellJunkButton:Hide()
+		-- Hide all sub-views, show buyback
+		for id, view in pairs(self.views) do
+			if id == "buyback" then
+				view:Show()
+			else
+				view:Hide()
+			end
 		end
 	end
 
 	self:RefreshActiveView()
 end
 
+function Controller:SetSubTab(subId)
+	self.activeSubTab = subId
+	ns.DB.vendor.rememberTab = subId -- Also remember the subtab for restore
+	
+	for id, button in pairs(self.frame.subTabsById) do
+		button:SetEnabled(id ~= subId)
+	end
+	
+	for id, view in pairs(self.views) do
+		if id == subId then
+			view:Show()
+		else
+			view:Hide()
+		end
+	end
+	
+	self:RefreshActiveView()
+end
+
 function Controller:RefreshActiveView()
 	if not self.views then return end
 	
-	local view = self.views[self.activeTab]
+	local targetView = self.activeTab == "main" and self.activeSubTab or self.activeTab
+	local view = self.views[targetView]
 	if not view then return end
 
 	-- Robust refresh calls
-	if self.activeTab == "buy" then
+	if targetView == "buy" then
 		if view.catalog and view.catalog.Refresh then
 			view.catalog:Refresh()
 		end
@@ -324,7 +398,9 @@ function Controller:RequestPurchase(item, quantity)
 end
 
 function Controller:HandleInput(action)
-	local view = self.views[self.activeTab]
+	local targetView = self.activeTab == "main" and self.activeSubTab or self.activeTab
+	local view = self.views[targetView]
+	
 	if view and view.HandleAction then
 		if view:HandleAction(action) then
 			return true
@@ -346,19 +422,34 @@ function Controller:HandleInput(action)
 end
 
 function Controller:CycleTab(delta)
-	local currentIndex = 1
-	for i, id in ipairs(TAB_ORDER) do
-		if id == self.activeTab then
-			currentIndex = i
-			break
+	-- If in main tab, cycle sub-tabs
+	if self.activeTab == "main" then
+		local currentIndex = 1
+		for i, id in ipairs(SUB_TAB_ORDER) do
+			if id == self.activeSubTab then
+				currentIndex = i
+				break
+			end
+		end
+
+		local nextIndex = currentIndex + delta
+		-- Wrap around or move to next major tab?
+		-- The user wanted unified, so let's wrap within the main subtabs first.
+		if nextIndex < 1 or nextIndex > #SUB_TAB_ORDER then
+			-- Switch to buyback if moving forward from repair, or back from buy
+			self:SetTab(self.activeTab == "main" and "buyback" or "main")
+		else
+			self:SetSubTab(SUB_TAB_ORDER[nextIndex])
+		end
+	else
+		-- In buyback, cycle back to main
+		self:SetTab("main")
+		if delta > 0 then
+			self:SetSubTab(SUB_TAB_ORDER[1])
+		else
+			self:SetSubTab(SUB_TAB_ORDER[#SUB_TAB_ORDER])
 		end
 	end
-
-	local nextIndex = currentIndex + delta
-	if nextIndex < 1 then nextIndex = #TAB_ORDER end
-	if nextIndex > #TAB_ORDER then nextIndex = 1 end
-
-	self:SetTab(TAB_ORDER[nextIndex])
 end
 
 ns.RegisterModule("VendorFrame", Controller)

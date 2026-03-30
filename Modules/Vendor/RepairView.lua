@@ -50,6 +50,7 @@ function RepairView:New(parent, owner)
 	frame.title = frame.panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	frame.title:SetPoint("TOPLEFT", 16, -16)
 	frame.title:SetText(L.REPAIR)
+	frame.title:Hide() -- Hide redundant header
 
 	frame.summary = frame.panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	frame.summary:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -14)

@@ -236,6 +236,14 @@ function Compat.IsConsumable(itemInfo)
 	return false
 end
 
+function Compat.CloseMerchantInteraction()
+	if C_MerchantFrame and C_MerchantFrame.CloseMerchant then
+		C_MerchantFrame.CloseMerchant()
+	elseif CloseMerchant then
+		CloseMerchant()
+	end
+end
+
 -- 4. Otras utilidades
 if not GetMoneyString then
 	_G.GetMoneyString = function(amount, separateThousands)
