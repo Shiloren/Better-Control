@@ -9,12 +9,19 @@ local Controller = {}
 ns.VendorFrame = Controller
 
 local TAB_ORDER = { "buy", "sell", "buyback", "repair" }
-local TAB_LABELS = {
-	buy = L.BUY,
-	sell = L.SELL,
-	buyback = L.BUYBACK,
-	repair = L.REPAIR,
-}
+
+local function ResolveTabLabel(tabId)
+	if tabId == "buy" then
+		return _G.MERCHANT or _G.MERCHANT_BUY or L.BUY or "Buy"
+	elseif tabId == "sell" then
+		return _G.SELL or L.SELL or "Sell"
+	elseif tabId == "buyback" then
+		return _G.BUYBACK or L.BUYBACK or "Buyback"
+	elseif tabId == "repair" then
+		return _G.REPAIR or L.REPAIR or "Repair"
+	end
+	return "Tab"
+end
 
 function Controller:OnAddonLoaded()
 	-- Initialization if needed
@@ -106,18 +113,20 @@ function Controller:CreateFrame()
 	end)
 
 	frame.subtitle = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	frame.subtitle:SetPoint("TOPLEFT", 16, -36)
-	frame.subtitle:SetPoint("RIGHT", -42, 0)
+	frame.subtitle:SetPoint("TOPLEFT", 18, -21)
+	frame.subtitle:SetPoint("TOPRIGHT", -140, -21)
 	frame.subtitle:SetJustifyH("LEFT")
 	frame.subtitle:SetText(L.APP_SUBTITLE)
+	frame.subtitle:SetAlpha(0.8)
 
 	frame.device = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	frame.device:SetPoint("TOPRIGHT", -48, -38)
+	frame.device:Hide() -- Hide collision-prone unused text
 
 	frame.tabsById = {}
 	frame.Tabs = {}
 	for tabIndex, tabId in ipairs(TAB_ORDER) do
-		local tab = Factory.CreateTab(frame, tabIndex, TAB_LABELS[tabId], string.format("%sTab%d", frame:GetName(), tabIndex))
+		local tab = Factory.CreateTab(frame, tabIndex, ResolveTabLabel(tabId), string.format("%sTab%d", frame:GetName(), tabIndex))
 		tab.tabId = tabId
 		tab:SetScript("OnClick", function()
 			self:SetTab(tabId)
@@ -131,7 +140,8 @@ function Controller:CreateFrame()
 		local tab = frame.tabsById[tabId]
 		if tab then
 			if tabIndex == 1 then
-				tab:SetPoint("BOTTOMLEFT", frame.Inset, "TOPLEFT", 6, 2)
+				-- Shifted right to 62 to clear provide safe spacing from portrait
+				tab:SetPoint("BOTTOMLEFT", frame.Inset, "TOPLEFT", 62, 2)
 			else
 				local prevTabId = TAB_ORDER[tabIndex - 1]
 				local prevTab = frame.tabsById[prevTabId]
