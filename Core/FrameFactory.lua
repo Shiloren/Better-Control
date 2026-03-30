@@ -93,9 +93,10 @@ function Factory.CreateRow(parent, width, height)
 	row.iconBorder:SetBackdropColor(0.06, 0.06, 0.06, 0.95)
 	row.iconBorder:SetBackdropBorderColor(0.35, 0.35, 0.35, 0.8)
 
-	row.icon = row:CreateTexture(nil, "ARTWORK")
-	row.icon:SetPoint("CENTER", row.iconBorder)
-	row.icon:SetSize(tokens.list.icon, tokens.list.icon)
+	row.icon = row.iconBorder:CreateTexture(nil, "ARTWORK")
+	row.icon:SetPoint("TOPLEFT", row.iconBorder, "TOPLEFT", 3, -3)
+	row.icon:SetPoint("BOTTOMRIGHT", row.iconBorder, "BOTTOMRIGHT", -3, 3)
+	row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
 	row.name = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	row.name:SetPoint("TOPLEFT", row.iconBorder, "TOPRIGHT", 10, -2)
