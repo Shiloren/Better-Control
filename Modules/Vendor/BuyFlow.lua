@@ -204,6 +204,19 @@ end
 function BuyFlow:SetItem(item)
 	self.item = item
 	self:ResetValueForItem()
+
+	-- Auto-suggest quantity from pattern if enabled
+	if item and ns.DB and ns.DB.insightSettings and ns.DB.insightSettings.autoSuggestQuantity then
+		local suggestion = ns.QuantityAnalyzer and ns.QuantityAnalyzer:GetSuggestedQuantity(item.itemID)
+		if suggestion and suggestion.quantity > 0 then
+			if self.quantityMode == "total" then
+				self.value = self:GetOwned() + suggestion.quantity
+			else
+				self.value = suggestion.quantity
+			end
+		end
+	end
+
 	self:Refresh()
 end
 
@@ -356,8 +369,21 @@ function BuyFlow:Refresh()
 		self.quickPlus:SetEnabled(false)
 		self.quickPlusFive:SetEnabled(false)
 		self.quickMax:SetEnabled(false)
+
+		-- Show smart actions panel when nothing selected
+		if self.smartActions then
+			self.smartActions:Refresh()
+			self.smartActions:Show()
+			self.panel:Hide()
+		end
 		return
 	end
+
+	-- Hide smart actions, show buy panel
+	if self.smartActions then
+		self.smartActions:Hide()
+	end
+	self.panel:Show()
 
 	local owned = self:GetOwned()
 	local affordable = Utils.GetAffordableQuantity(item)
@@ -378,7 +404,29 @@ function BuyFlow:Refresh()
 
 	self.title:SetText(item.name)
 	self.icon:SetTexture(item.icon or 134400)
-	self.summary:SetText(string.format("%s: %d\n%s: %d\n%s: %s", L.OWNED, owned, L.BUNDLE, item.unitSize, L.PRICE, Utils.DescribeCosts(item, item.unitSize)))
+
+	-- Build summary with optional insight hints
+	local summaryLines = string.format("%s: %d\n%s: %d\n%s: %s",
+		L.OWNED, owned, L.BUNDLE, item.unitSize, L.PRICE, Utils.DescribeCosts(item, item.unitSize))
+
+	if ns.DB and ns.DB.insightSettings then
+		-- Quantity pattern hint
+		local qSuggest = ns.QuantityAnalyzer and ns.QuantityAnalyzer:GetSuggestedQuantity(item.itemID)
+		if qSuggest then
+			summaryLines = summaryLines .. string.format("\n|cff00ccff%s|r", qSuggest.message)
+		end
+
+		-- Restock warning
+		if ns.DB.insightSettings.showRestockWarnings then
+			local restock = ns.ConsumptionEstimator and ns.ConsumptionEstimator:GetRestockMessage(item.itemID)
+			if restock then
+				local color = restock.severity == "high" and "|cffff4444" or "|cffff9900"
+				summaryLines = summaryLines .. string.format("\n%s%s|r", color, restock.message)
+			end
+		end
+	end
+
+	self.summary:SetText(summaryLines)
 	
 	if isMouse then
 		if not self.valueEdit:HasFocus() then

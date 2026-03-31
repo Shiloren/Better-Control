@@ -292,6 +292,11 @@ function Queue:Complete()
 		return
 	end
 
+	-- Track this purchase in telemetry
+	if ns.Telemetry and self.job.item and self.job.purchasedQty > 0 then
+		ns.Telemetry:TrackItemPurchase(self.job.item, self.job.purchasedQty)
+	end
+
 	self.job.state = "complete"
 	self.job.status = string.format("Completed %d x %s", self.job.purchasedQty, ns.GetItemDisplayName(self.job.item))
 	self.job.awaiting = nil
