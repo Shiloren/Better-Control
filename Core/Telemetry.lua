@@ -39,11 +39,24 @@ end
 
 -- Called when MERCHANT_SHOW fires
 function Telemetry:StartSession(vendorName)
+	-- Capture vendor location from player position (player must be near the vendor)
+	local mapID   = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
+	local pos     = mapID and C_Map.GetPlayerMapPosition and C_Map.GetPlayerMapPosition(mapID, "player")
+	local mapInfo = mapID and C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)
+
 	currentSession = {
-		vendor = vendorName or "Unknown Vendor",
-		cart = {},
+		vendor    = vendorName or "Unknown Vendor",
+		cart      = {},
 		startTime = time(),
+		vendorLocation = {
+			mapID    = mapID or 0,
+			-- Store as percentage (0–100) with 2-decimal precision — standard WoW display format
+			x        = pos and (math.floor((pos.x or 0) * 10000 + 0.5) / 100) or 0,
+			y        = pos and (math.floor((pos.y or 0) * 10000 + 0.5) / 100) or 0,
+			zoneName = (mapInfo and mapInfo.name) or "Unknown",
+		},
 	}
+
 	local db = ns.DB
 	if db.telemetry then
 		db.telemetry.vendorOpenCount = (db.telemetry.vendorOpenCount or 0) + 1

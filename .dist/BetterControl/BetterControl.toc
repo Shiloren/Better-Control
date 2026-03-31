@@ -25,4 +25,5 @@ Modules\Vendor\SellView.lua
 Modules\Vendor\BuybackView.lua
 Modules\Vendor\RepairView.lua
 Modules\Vendor\SmartActionsPanel.lua
+Modules\Vendor\FavoritesView.lua
 Modules\Vendor\VendorFrame.lua

@@ -349,13 +349,24 @@ function SmartActionsPanel:SaveCartAsFavorite(name, items)
 	if not db then return end
 	if not db.favorites then db.favorites = {} end
 
+	-- Capture current vendor info from the active telemetry session
+	local vendorInfo = nil
+	local session = ns.Telemetry and ns.Telemetry:GetCurrentSession()
+	if session then
+		vendorInfo = {
+			name     = session.vendor,
+			location = session.vendorLocation,
+		}
+	end
+
 	table.insert(db.favorites, {
 		favoriteId = string.format("user-%d", time()),
-		name = name,
-		items = items,
-		createdAt = time(),
-		lastUsed = time(),
-		useCount = 0,
+		name       = name,
+		items      = items,
+		vendorInfo = vendorInfo,
+		createdAt  = time(),
+		lastUsed   = time(),
+		useCount   = 0,
 	})
 
 	self.statusLine:SetText(string.format("Saved '%s' to favorites!", name))

@@ -8,7 +8,7 @@ local Input = ns.InputAdapter
 local Controller = {}
 ns.VendorFrame = Controller
 
-local TAB_ORDER = { "main", "buyback" }
+local TAB_ORDER = { "main", "buyback", "favorites" }
 
 local function ResolveTabLabel(tabId)
 	if tabId == "main" then
@@ -21,6 +21,8 @@ local function ResolveTabLabel(tabId)
 		return (MerchantFrameTab2 and MerchantFrameTab2:GetText()) or _G.BUYBACK or L.BUYBACK or "Buyback"
 	elseif tabId == "repair" then
 		return _G.REPAIR or L.REPAIR or "Repair"
+	elseif tabId == "favorites" then
+		return "Favorites"
 	end
 	return "Tab"
 end
@@ -334,6 +336,11 @@ function Controller:CreateFrame()
 		self.views.buyback = ns.VendorBuybackView:New(frame.content, self, math.floor(434/tokens.list.rowHeight))
 		self.views.repair = ns.VendorRepairView:New(frame.content, self)
 
+		-- Favorites tab: full-screen card view with vendor availability and map pins
+		if ns.VendorFavoritesView then
+			self.views.favorites = ns.VendorFavoritesView:New(frame.content, self)
+		end
+
 		-- Initial setup: Ensure all embeddable parts follow their region's constraints
 		self.views.catalog:SetAllPoints()
 		self.views.buyFlow:SetAllPoints()
@@ -377,6 +384,7 @@ function Controller:SetTab(tabId)
 		for _, region in pairs(self.frame.regions) do region:Show() end
 		self.views.buyback:Hide()
 		self.views.repair:Hide()
+		if self.views.favorites then self.views.favorites:Hide() end
 	else
 		self.frame.headerActions:Hide()
 		-- Hide all regions before showing a whole-frame tab
@@ -384,9 +392,15 @@ function Controller:SetTab(tabId)
 		if tabId == "buyback" then
 			self.views.buyback:Show()
 			self.views.repair:Hide()
-		elseif tabId == "repair" then -- Handled by separate view if direct nav is used
+			if self.views.favorites then self.views.favorites:Hide() end
+		elseif tabId == "repair" then
 			self.views.buyback:Hide()
 			self.views.repair:Show()
+			if self.views.favorites then self.views.favorites:Hide() end
+		elseif tabId == "favorites" then
+			self.views.buyback:Hide()
+			self.views.repair:Hide()
+			if self.views.favorites then self.views.favorites:Show() end
 		end
 	end
 
@@ -403,6 +417,8 @@ function Controller:RefreshActiveView()
 		if self.views.buyFlow then self.views.buyFlow:Refresh() end
 	elseif self.activeTab == "buyback" then
 		if self.views.buyback then self.views.buyback:Refresh() end
+	elseif self.activeTab == "favorites" then
+		if self.views.favorites then self.views.favorites:Refresh() end
 	end
 end
 
