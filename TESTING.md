@@ -79,6 +79,9 @@ Other tabs:
 
 1. Test with keyboard and mouse.
 2. Test with WoW native gamepad mode.
+   - **Configuración automática**: Usa `/bcv setup` seguido de `/reload` para configurar el gamepad automáticamente
+   - **Verificar estado**: Usa `/bcv check` para ver si el gamepad está habilitado
+   - **Configuración manual**: Si lo prefieres, escribe `/console GamePadEnable 1` y `/reload`
 3. Test with ConsolePort installed.
 4. If using Armoury Crate remaps, bind M1/M2 to spare keys and wire them to Better Control actions in WoW Keybindings.
 
@@ -87,3 +90,7 @@ Other tabs:
 - If the addon does not appear, verify the folder path ends in `BetterControl\BetterControl.toc`.
 - If bindings do not react, check WoW Keybindings and confirm the frame is open over a merchant.
 - If a system button does not reach the addon, it is likely reserved by the handheld shell and must be remapped before WoW can see it.
+- **Si el gamepad no funciona en WoW**:
+  - El addon detectará automáticamente si el gamepad no está habilitado y mostrará un mensaje al iniciar sesión
+  - Usa `/bcv setup` seguido de `/reload` para configurar todo automáticamente
+  - Usa `/bcv check` para verificar el estado de configuración del gamepad

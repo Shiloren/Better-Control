@@ -105,6 +105,107 @@ function BetterControl_HandleBinding(action)
 	end
 end
 
+-- ============================================================================
+-- GamePad Detection and Auto-Configuration
+-- ============================================================================
+
+-- CVars verificados oficialmente en Wowpedia (añadidos en Patch 9.0.1)
+local GAMEPAD_CVARS = {
+	{ name = "GamePadEnable", value = "1", desc = "Habilita soporte de gamepad", required = true },
+	{ name = "GamePadEmulateCtrl", value = "1", desc = "Permite modificador Ctrl", required = false },
+	{ name = "GamePadEmulateShift", value = "1", desc = "Permite modificador Shift", required = false },
+	{ name = "GamePadEmulateAlt", value = "1", desc = "Permite modificador Alt", required = false },
+	{ name = "GamePadEmulateEsc", value = "1", desc = "Permite tecla Escape", required = false },
+	{ name = "GamePadCursorLeftClick", value = "1", desc = "Habilita clic izquierdo", required = false },
+	{ name = "GamePadCursorRightClick", value = "1", desc = "Habilita clic derecho", required = false },
+}
+
+function ns.IsGamePadEnabled()
+	return GetCVarBool and GetCVarBool("GamePadEnable")
+end
+
+function ns.CheckGamePadConfiguration()
+	local allConfigured = true
+	local missingCVars = {}
+
+	for _, cvar in ipairs(GAMEPAD_CVARS) do
+		local current = GetCVar(cvar.name)
+		if current ~= cvar.value then
+			allConfigured = false
+			table.insert(missingCVars, cvar.name)
+		end
+	end
+
+	return allConfigured, missingCVars
+end
+
+function ns.ConfigureGamePad()
+	print("|cff00ccff[Better Control]|r Configurando gamepad...")
+
+	local configured = 0
+	for _, cvar in ipairs(GAMEPAD_CVARS) do
+		local success = pcall(SetCVar, cvar.name, cvar.value)
+		if success then
+			configured = configured + 1
+			print("  |cff00ff00✓|r " .. cvar.desc)
+		else
+			print("  |cffff0000✗|r Error configurando: " .. cvar.name)
+		end
+	end
+
+	if configured == #GAMEPAD_CVARS then
+		print("|cff00ff00[Better Control]|r GamePad configurado correctamente.")
+		print("|cffffff00Escribe /reload para aplicar los cambios.|r")
+		return true
+	else
+		print("|cffff6600[Better Control]|r Algunos CVars no se pudieron configurar.")
+		return false
+	end
+end
+
+function ns.NotifyGamePadStatus()
+	-- Solo notificar una vez por sesión
+	if ns.DB and ns.DB.gamepadNotified then
+		return
+	end
+
+	local enabled = ns.IsGamePadEnabled()
+
+	if not enabled then
+		-- Esperar 3 segundos después del login para no saturar el chat
+		C_Timer.After(3, function()
+			print(" ")
+			print("|cffff6600========================================|r")
+			print("|cff00ccff[Better Control]|r |cffff6600GamePad no detectado|r")
+			print(" ")
+			print("Para usar un mando/controlador en WoW:")
+			print("|cffffff00• Escribe: /bcv setup|r")
+			print("|cffffff00• Luego: /reload|r")
+			print(" ")
+			print("Esto configurará automáticamente todo")
+			print("lo necesario para usar tu controlador.")
+			print("|cffff6600========================================|r")
+			print(" ")
+		end)
+	else
+		-- GamePad habilitado, verificar si está bien configurado
+		local allConfigured, missing = ns.CheckGamePadConfiguration()
+		if not allConfigured then
+			C_Timer.After(3, function()
+				print(" ")
+				print("|cff00ccff[Better Control]|r GamePad habilitado pero faltan algunas configuraciones.")
+				print("|cffffff00Escribe /bcv setup para configurar todo automáticamente.|r")
+				print(" ")
+			end)
+		end
+	end
+
+	-- Marcar como notificado para esta sesión
+	if ns.DB then
+		ns.DB.gamepadNotified = true
+	end
+end
+
 local addon = CreateFrame("Frame")
 ns.Addon = addon
 
@@ -128,6 +229,41 @@ end
 SLASH_BETTERCONTROL1 = "/bettercontrol"
 SLASH_BETTERCONTROL2 = "/bcv"
 SlashCmdList.BETTERCONTROL = function(message)
+	-- Procesar comandos especiales primero
+	local cmd = message:lower():trim()
+
+	if cmd == "setup" then
+		ns.ConfigureGamePad()
+		return
+	elseif cmd == "check" or cmd == "gamepad" then
+		local enabled = ns.IsGamePadEnabled()
+		if enabled then
+			local allConfigured, missing = ns.CheckGamePadConfiguration()
+			if allConfigured then
+				print("|cff00ff00[Better Control]|r GamePad correctamente configurado ✓")
+			else
+				print("|cffff6600[Better Control]|r GamePad habilitado pero faltan configuraciones.")
+				print("CVars faltantes: " .. table.concat(missing, ", "))
+				print("|cffffff00Usa /bcv setup para configurar todo.|r")
+			end
+		else
+			print("|cffff0000[Better Control]|r GamePad NO habilitado.")
+			print("|cffffff00Usa /bcv setup para habilitarlo.|r")
+		end
+		return
+	elseif cmd == "help" or cmd == "?" then
+		print(" ")
+		print("|cff00ccff[Better Control]|r Comandos disponibles:")
+		print("  |cffffff00/bcv|r o |cffffff00/bcv show|r - Abrir ventana de vendor")
+		print("  |cffffff00/bcv hide|r - Cerrar ventana de vendor")
+		print("  |cffffff00/bcv setup|r - Configurar gamepad automáticamente")
+		print("  |cffffff00/bcv check|r - Ver estado de gamepad")
+		print("  |cffffff00/bcv help|r - Mostrar esta ayuda")
+		print(" ")
+		return
+	end
+
+	-- Comandos del vendor (show, hide, etc.)
 	dispatch("OnSlashCommand", message)
 end
 
@@ -154,6 +290,8 @@ addon:SetScript("OnEvent", function(_, event, ...)
 		ns.Debug("PLAYER_LOGIN: Dispatching modules")
 		xpcall(function()
 			dispatch("OnPlayerLogin")
+			-- Verificar configuración de gamepad después de que todo esté cargado
+			ns.NotifyGamePadStatus()
 		end, function(err)
 			ns.Debug("CRITICAL ERROR during OnPlayerLogin: " .. tostring(err))
 		end)
