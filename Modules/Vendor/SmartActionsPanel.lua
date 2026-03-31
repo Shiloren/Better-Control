@@ -123,48 +123,94 @@ function SmartActionsPanel:RebuyLastOrder()
 end
 
 -- ============================================================================
--- Cart selection menu
+-- Cart selection menu (custom panel — avoids deprecated UIDropDownMenu APIs)
 -- ============================================================================
+
+function SmartActionsPanel:BuildCartsMenuPanel()
+	if self._cartsMenu then return self._cartsMenu end
+
+	local menu = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+	menu:SetFrameStrata("TOOLTIP")
+	menu:SetClampedToScreen(true)
+	menu:SetBackdrop({
+		bgFile   = "Interface\\Buttons\\WHITE8X8",
+		edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+		edgeSize = 12,
+		insets   = { left = 4, right = 4, top = 4, bottom = 4 },
+	})
+	menu:SetBackdropColor(0.06, 0.06, 0.06, 0.96)
+	menu:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+	menu:Hide()
+
+	-- Close on click-outside
+	menu:EnableMouse(true)
+	local blocker = CreateFrame("Frame", nil, UIParent)
+	blocker:SetAllPoints(UIParent)
+	blocker:SetFrameStrata("HIGH")
+	blocker:EnableMouse(true)
+	blocker:Hide()
+	blocker:SetScript("OnMouseDown", function()
+		blocker:Hide()
+		menu:Hide()
+	end)
+	menu._blocker = blocker
+
+	menu.title = menu:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	menu.title:SetPoint("TOPLEFT", 8, -8)
+	menu.title:SetText("Detected Carts")
+
+	menu.buttons = {}
+	self._cartsMenu = menu
+	return menu
+end
 
 function SmartActionsPanel:ShowCartsMenu()
 	local db = ns.DB
 	local carts = db and db.detectedCarts or {}
 	if #carts == 0 then return end
 
-	-- Build a simple dropdown using UIDropDownMenu
-	if not self._cartsDropdown then
-		self._cartsDropdown = CreateFrame("Frame", "BetterControlCartsDropdown", UIParent, "UIDropDownMenuTemplate")
+	local menu = self:BuildCartsMenuPanel()
+
+	-- Clear previous buttons
+	for _, btn in ipairs(menu.buttons) do btn:Hide() end
+	menu.buttons = {}
+
+	local ROW_H = 24
+	local WIDTH = 200
+	local yOff = -28
+
+	for _, cart in ipairs(carts) do
+		local c = cart
+		local btn = Factory.CreateButton(menu, string.format("%s (%dx)", c.name or "?", c.occurrences or 0), WIDTH - 16, ROW_H)
+		btn:SetPoint("TOPLEFT", 8, yOff)
+		btn:SetScript("OnClick", function()
+			menu._blocker:Hide()
+			menu:Hide()
+			self:LoadDetectedCart(c)
+		end)
+		table.insert(menu.buttons, btn)
+		yOff = yOff - (ROW_H + 2)
 	end
 
-	UIDropDownMenu_Initialize(self._cartsDropdown, function(_, level)
-		level = level or 1
-		if level == 1 then
-			local info = UIDropDownMenu_CreateInfo()
-			info.isTitle = true
-			info.text = "Your Detected Carts"
-			info.notCheckable = true
-			UIDropDownMenu_AddButton(info, level)
+	-- Cancel button
+	local cancelBtn = Factory.CreateButton(menu, CANCEL or "Cancel", WIDTH - 16, ROW_H)
+	cancelBtn:SetPoint("TOPLEFT", 8, yOff - 4)
+	cancelBtn:SetScript("OnClick", function()
+		menu._blocker:Hide()
+		menu:Hide()
+	end)
+	table.insert(menu.buttons, cancelBtn)
+	yOff = yOff - (ROW_H + 4)
 
-			for _, cart in ipairs(carts) do
-				local c = cart  -- capture
-				info = UIDropDownMenu_CreateInfo()
-				info.text = string.format("%s (%dx)", c.name, c.occurrences)
-				info.notCheckable = true
-				info.func = function()
-					self:LoadDetectedCart(c)
-				end
-				UIDropDownMenu_AddButton(info, level)
-			end
+	local totalH = math.abs(yOff) + 12
+	menu:SetSize(WIDTH, totalH)
 
-			info = UIDropDownMenu_CreateInfo()
-			info.text = CANCEL
-			info.notCheckable = true
-			info.func = function() CloseDropDownMenus() end
-			UIDropDownMenu_AddButton(info, level)
-		end
-	end, "MENU")
+	-- Position near the button
+	menu:ClearAllPoints()
+	menu:SetPoint("TOPLEFT", self.cartsButton, "BOTTOMLEFT", 0, -4)
 
-	ToggleDropDownMenu(1, nil, self._cartsDropdown, "cursor", 0, -4)
+	menu._blocker:Show()
+	menu:Show()
 end
 
 -- ============================================================================

@@ -162,7 +162,7 @@ function CartRecognizer:DetectRecurringCarts()
 					end
 				end
 
-				local typicalQty = baseEntry.quantity
+				local typicalQty = baseEntry.quantity or baseEntry.typicalQuantity or 1
 				if #quantities > 0 then
 					table.sort(quantities)
 					typicalQty = quantities[math.ceil(#quantities / 2)]

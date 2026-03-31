@@ -314,6 +314,7 @@ function Controller:CreateFrame()
 	end)
 
 	-- Safe creation of views using Mixins into deterministic regions
+	self.views = {}
 	xpcall(function()
 		-- Catalog View hosts the Merchant Item List
 		self.views.catalog = ns.VendorCatalogView:New(frame.regions.catalog, self, 4, true)

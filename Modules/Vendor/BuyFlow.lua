@@ -254,7 +254,7 @@ function BuyFlow:RefreshCostsOnly()
 
 	local resolved = self:GetResolvedPurchaseQuantity()
 	local affordable = Utils.GetAffordableQuantity(item)
-	self.purchaseHint:SetText(string.format("Will buy %d now. Max immediate batch %d.", resolved, affordable))
+	self.purchaseHint:SetText(string.format("Will buy %d now. Max %d.", resolved, affordable))
 	self.costs:SetText(string.format("Purchase cost: |cffffffff%s|r", Utils.DescribeCosts(item, resolved)))
 end
 
@@ -405,28 +405,27 @@ function BuyFlow:Refresh()
 	self.title:SetText(item.name)
 	self.icon:SetTexture(item.icon or 134400)
 
-	-- Build summary with optional insight hints
-	local summaryLines = string.format("%s: %d\n%s: %d\n%s: %s",
-		L.OWNED, owned, L.BUNDLE, item.unitSize, L.PRICE, Utils.DescribeCosts(item, item.unitSize))
+	self.summary:SetText(string.format("%s: %d\n%s: %d\n%s: %s",
+		L.OWNED, owned, L.BUNDLE, item.unitSize, L.PRICE, Utils.DescribeCosts(item, item.unitSize)))
 
+	-- Insight hints shown in purchaseHint area (below mode buttons, layout-safe)
+	-- Priority: restock warning > quantity pattern > default text
+	local insightPrefix = ""
 	if ns.DB and ns.DB.insightSettings then
-		-- Quantity pattern hint
-		local qSuggest = ns.QuantityAnalyzer and ns.QuantityAnalyzer:GetSuggestedQuantity(item.itemID)
-		if qSuggest then
-			summaryLines = summaryLines .. string.format("\n|cff00ccff%s|r", qSuggest.message)
-		end
-
-		-- Restock warning
 		if ns.DB.insightSettings.showRestockWarnings then
 			local restock = ns.ConsumptionEstimator and ns.ConsumptionEstimator:GetRestockMessage(item.itemID)
 			if restock then
 				local color = restock.severity == "high" and "|cffff4444" or "|cffff9900"
-				summaryLines = summaryLines .. string.format("\n%s%s|r", color, restock.message)
+				insightPrefix = string.format("%s%s|r\n", color, restock.message)
+			end
+		end
+		if insightPrefix == "" and ns.DB.insightSettings.autoSuggestQuantity then
+			local qSuggest = ns.QuantityAnalyzer and ns.QuantityAnalyzer:GetSuggestedQuantity(item.itemID)
+			if qSuggest then
+				insightPrefix = string.format("|cff00ccff%s|r\n", qSuggest.message)
 			end
 		end
 	end
-
-	self.summary:SetText(summaryLines)
 	
 	if isMouse then
 		if not self.valueEdit:HasFocus() then
@@ -436,7 +435,7 @@ function BuyFlow:Refresh()
 		self.valueText:SetText(BreakUpLargeNumbers(self.value))
 	end
 
-	self.purchaseHint:SetText(string.format("Will buy %d now. Max immediate batch %d.", resolved, affordable))
+	self.purchaseHint:SetText(insightPrefix .. string.format("Will buy %d now. Max %d.", resolved, affordable))
 	self.costs:SetText(string.format("Purchase cost: |cffffffff%s|r", Utils.DescribeCosts(item, resolved)))
 end
 
