@@ -43,6 +43,8 @@ end
 -- Verifica si una compra necesita confirmación.
 -- callback(confirmed) se llama con true/false cuando el usuario decide.
 function SafeMode:CheckPurchase(totalCost, isMaxBuy, callback)
+	if type(callback) ~= "function" then return end
+
 	local cfg = getCfg()
 	if not cfg.enabled then
 		callback(true)

@@ -269,7 +269,7 @@ function RadialMenu:ExecuteAction(action)
 		end
 	elseif action == "openFavorites" then
 		if vf then
-			vf:SwitchTab("favorites")
+			vf:SetTab("favorites")
 		end
 	elseif action == "openHistory" then
 		if sa and sa.ShowHistoryMenu then
@@ -297,7 +297,8 @@ end
 
 function RadialMenu:OnAddonLoaded()
 	-- Escuchar eventos de botón del gamepad a través de un frame dedicado
-	local listener = CreateFrame("Frame")
+	self.listenerFrame = CreateFrame("Frame", "BCRadialMenuListener")
+	local listener = self.listenerFrame
 	listener:EnableGamePadButton(true)
 
 	listener:SetScript("OnGamePadButtonDown", function(_, button)

@@ -214,8 +214,8 @@ end
 -- ──────────────────────────────────────────────────────────────────────────────
 
 function GestureRecognizer:OnAddonLoaded()
-	local ticker = CreateFrame("Frame")
-	ticker:SetScript("OnUpdate", function()
+	self.tickerFrame = CreateFrame("Frame", "BCGestureRecognizerTicker")
+	self.tickerFrame:SetScript("OnUpdate", function()
 		self:OnUpdate()
 	end)
 end

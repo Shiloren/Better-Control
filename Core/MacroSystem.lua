@@ -229,7 +229,8 @@ function MacroSystem:OnAddonLoaded()
 	local l3Down = false
 	local r3Down = false
 
-	local listener = CreateFrame("Frame")
+	self.listenerFrame = CreateFrame("Frame", "BCMacroSystemListener")
+	local listener = self.listenerFrame
 	listener:EnableGamePadButton(true)
 
 	listener:SetScript("OnGamePadButtonDown", function(_, button)

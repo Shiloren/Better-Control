@@ -259,7 +259,8 @@ end
 -- ──────────────────────────────────────────────────────────────────────────────
 
 function BatchOverlay:OnAddonLoaded()
-	local listener = CreateFrame("Frame")
+	self.listenerFrame = CreateFrame("Frame", "BCBatchOverlayListener")
+	local listener = self.listenerFrame
 	listener:EnableGamePadButton(true)
 
 	listener:SetScript("OnGamePadButtonDown", function(_, button)
