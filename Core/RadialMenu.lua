@@ -261,28 +261,29 @@ end
 
 function RadialMenu:ExecuteAction(action)
 	local vf = ns.VendorFrame
-	local sa = ns.SmartActions
+	local smartActions = vf and vf.views and vf.views.buyFlow and vf.views.buyFlow.smartActions
 
 	if action == "openCart" then
-		if vf and vf.ShowCart then
-			vf:ShowCart()
+		-- Mostrar el panel de acciones rápidas / carritos detectados
+		if smartActions and smartActions.ShowCartsMenu then
+			smartActions:ShowCartsMenu()
 		end
 	elseif action == "openFavorites" then
 		if vf then
 			vf:SetTab("favorites")
 		end
 	elseif action == "openHistory" then
-		if sa and sa.ShowHistoryMenu then
-			sa:ShowHistoryMenu()
+		-- El panel de carritos muestra historial y carritos detectados
+		if smartActions and smartActions.ShowCartsMenu then
+			smartActions:ShowCartsMenu()
 		end
 	elseif action == "openFilters" then
-		if vf and vf.ShowFiltersMenu then
-			vf:ShowFiltersMenu()
+		-- Sin implementación en VendorFrame aún; cambiar al tab principal
+		if vf then
+			vf:SetTab("main")
 		end
 	elseif action == "openSettings" then
-		if vf and vf.ShowSettings then
-			vf:ShowSettings()
-		end
+		-- Sin implementación en VendorFrame aún; no-op seguro
 	end
 
 	-- Haptic de confirmación

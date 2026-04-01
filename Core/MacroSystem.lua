@@ -178,9 +178,10 @@ function MacroSystem:ExecuteStep(step)
 	local delay = 0
 
 	if step.type == "loadCart" then
-		if ns.SmartActions and ns.SmartActions.LoadDetectedCart then
+		local sa = ns.VendorFrame and ns.VendorFrame.views and ns.VendorFrame.views.buyFlow and ns.VendorFrame.views.buyFlow.smartActions
+		if sa and sa.LoadDetectedCart then
 			local cart = self:FindCartById(step.cartId)
-			if cart then ns.SmartActions:LoadDetectedCart(cart) end
+			if cart then sa:LoadDetectedCart(cart) end
 		end
 
 	elseif step.type == "execute" then

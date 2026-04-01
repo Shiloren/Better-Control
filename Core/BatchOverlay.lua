@@ -169,8 +169,9 @@ function BatchOverlay:DoAction(action)
 		elseif a == "buyNow" then
 			if vf and vf.BuyNow then vf:BuyNow(selectedItem) end
 		elseif a == "addFavorite" then
-			if ns.SmartActions and ns.SmartActions.AddItemToFavorites then
-				ns.SmartActions:AddItemToFavorites(selectedItem)
+			local sa = ns.VendorFrame and ns.VendorFrame.views and ns.VendorFrame.views.buyFlow and ns.VendorFrame.views.buyFlow.smartActions
+			if sa and sa.PromptSaveCart then
+				sa:PromptSaveCart()
 			end
 		elseif a == "showCart" then
 			if vf and vf.ShowCart then vf:ShowCart() end
