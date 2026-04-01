@@ -130,7 +130,6 @@ function MacroEditor:BuildFrame()
 	frame.detailStats:SetTextColor(0.6, 0.8, 0.6)
 
 	-- ── Botones de acción ─────────────────────────────────────────────────────
-	local btnY = -345
 
 	-- Botón Ejecutar
 	local btnRun = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")

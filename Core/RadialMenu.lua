@@ -200,10 +200,8 @@ function RadialMenu:OnStickUpdate()
 
 	-- Fallback a mouse para testing en modo escritorio
 	if not dx then
-		local scale  = UIParent:GetEffectiveScale()
-		local mouseX = GetCursorPosition() / scale
-		-- GetCursorPosition devuelve x,y; capturar ambos
-		local mx, my = GetCursorPosition()
+		local scale    = UIParent:GetEffectiveScale()
+		local mx, my   = GetCursorPosition()
 		dx = mx / scale - centerX
 		dy = my / scale - centerY
 	end

@@ -12,7 +12,7 @@ ns.BudgetManager = BudgetManager
 -- Defaults inyectados en ns.DEFAULTS desde OnAddonLoaded
 local DEFAULT_BUDGET = {
 	enabled      = false,
-	weeklyLimit  = 100000,  -- en cobre (100g)
+	weeklyLimit  = 100000,  -- en cobre (10g)
 	currentSpent = 0,
 	weekStart    = 0,       -- timestamp del inicio de la semana actual
 	warnings     = {

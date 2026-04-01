@@ -101,7 +101,7 @@ function MacroSystem:StartRecording(name)
 
 	self.isRecording = true
 	ns.Debug("[MacroSystem] Recording started: " .. self.recordBuffer.name)
-	print("|cff00ccff[Better Control]|r |cffff0Grabando macro:|r " .. self.recordBuffer.name .. " - realiza tus compras.")
+	print("|cff00ccff[Better Control]|r |cffffff00Grabando macro:|r " .. self.recordBuffer.name .. " - realiza tus compras.")
 end
 
 function MacroSystem:RecordStep(stepType, data)

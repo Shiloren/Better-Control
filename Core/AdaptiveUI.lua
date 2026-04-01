@@ -177,15 +177,10 @@ end
 -- ──────────────────────────────────────────────────────────────────────────────
 
 function AdaptiveUI:OnAddonLoaded()
-	if ns.DEFAULTS and ns.DEFAULTS.telemetry then
-		-- Asegurar campos de telemetría usados por AdaptiveUI
-		local tel = ns.DEFAULTS.telemetry
-		if tel.gesturesUsed    == nil then tel.gesturesUsed    = 0 end
-		if tel.buttonsUsed     == nil then tel.buttonsUsed     = 0 end
-		if tel.cartsLoaded     == nil then tel.cartsLoaded     = 0 end
-		if tel.manualPurchases == nil then tel.manualPurchases = 0 end
-		if tel.actionFrequency == nil then tel.actionFrequency = {} end
-	end
+	-- ns.DEFAULTS.telemetry no existe como tabla; los campos se inicializan
+	-- directamente en ns.DB.telemetry que gestiona Core/Telemetry.lua.
+	-- RecordAction() y RecordCartLoad() hacen sus propios guards, así que
+	-- no es necesario pre-poblar aquí.
 end
 
 function AdaptiveUI:OnPlayerLogin()
