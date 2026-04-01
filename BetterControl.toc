@@ -18,6 +18,14 @@ Core\Telemetry.lua
 Core\QuantityPatternAnalyzer.lua
 Core\CartPatternRecognizer.lua
 Core\ConsumptionEstimator.lua
+Core\HapticFeedback.lua
+Core\RadialMenu.lua
+Core\GestureRecognizer.lua
+Core\BatchOverlay.lua
+Core\MacroSystem.lua
+Core\BudgetManager.lua
+Core\SafeMode.lua
+Core\AdaptiveUI.lua
 Modules\Vendor\PurchaseQueue.lua
 Modules\Vendor\CatalogView.lua
 Modules\Vendor\BuyFlow.lua
@@ -26,5 +34,6 @@ Modules\Vendor\BuybackView.lua
 Modules\Vendor\RepairView.lua
 Modules\Vendor\SmartActionsPanel.lua
 Modules\Vendor\FavoritesView.lua
+Modules\Vendor\MacroEditor.lua
 Modules\Vendor\VendorFrame.lua
 Modules\Visuals\ConsumableSignaler.lua
