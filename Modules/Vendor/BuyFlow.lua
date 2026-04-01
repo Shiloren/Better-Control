@@ -313,12 +313,26 @@ end
 function BuyFlow:DirectPurchase(item)
 	if not item then return end
 	local quantity = item.unitSize or 1
-	if self:ShouldWarnBeforePurchase(item, quantity) then
-		-- Switch to item so they see what's happening
-		self:SetItem(item)
-		self:PromptPurchase(quantity)
+	local unitSize = math.max(1, item.unitSize or 1)
+	local totalCost = math.floor((item.price or 0) * quantity / unitSize)
+
+	local function doDirect()
+		if not ns.SafeMode or not ns.SafeMode:CanDoBatchAction(quantity) then return end
+		if self:ShouldWarnBeforePurchase(item, quantity) then
+			self:SetItem(item)
+			self:PromptPurchase(quantity)
+		else
+			self.owner.purchaseQueue:Start(item, quantity)
+			if ns.SafeMode then ns.SafeMode:MarkBatchDone() end
+		end
+	end
+
+	if ns.SafeMode then
+		ns.SafeMode:CheckPurchase(totalCost, false, function(confirmed)
+			if confirmed then doDirect() end
+		end)
 	else
-		self.owner.purchaseQueue:Start(item, quantity)
+		doDirect()
 	end
 end
 
@@ -329,10 +343,32 @@ function BuyFlow:StartPurchase()
 		return
 	end
 
-	if self:ShouldWarnBeforePurchase(self.item, quantity) then
-		self:PromptPurchase(quantity)
+	local item = self.item
+	local unitSize = math.max(1, item.unitSize or 1)
+	local totalCost = math.floor((item.price or 0) * quantity / unitSize)
+	local isMax = (quantity >= Utils.GetAffordableQuantity(item))
+
+	local function doStart()
+		if not ns.SafeMode or not ns.SafeMode:CanDoBatchAction(quantity) then return end
+
+		if self:ShouldWarnBeforePurchase(item, quantity) then
+			self:PromptPurchase(quantity)
+		else
+			self.owner.purchaseQueue:Start(item, quantity)
+			if ns.SafeMode then ns.SafeMode:MarkBatchDone() end
+			-- Grabar paso en macro si está en modo grabación
+			if ns.MacroSystem and ns.MacroSystem.isRecording then
+				ns.MacroSystem:RecordStep("execute", { action = "buyAll" })
+			end
+		end
+	end
+
+	if ns.SafeMode then
+		ns.SafeMode:CheckPurchase(totalCost, isMax, function(confirmed)
+			if confirmed then doStart() end
+		end)
 	else
-		self.owner.purchaseQueue:Start(self.item, quantity)
+		doStart()
 	end
 end
 

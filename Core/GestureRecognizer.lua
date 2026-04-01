@@ -24,6 +24,10 @@ GestureRecognizer.lastGesture = 0
 -- ──────────────────────────────────────────────────────────────────────────────
 
 function GestureRecognizer:OnUpdate()
+	-- No procesar gestos si el vendor no está abierto
+	local vf = ns.VendorFrame
+	if not vf or not vf.frame or not vf.frame:IsShown() then return end
+
 	local now = GetTime()
 	if now - self.lastGesture < COOLDOWN_TIME then return end
 
@@ -142,6 +146,11 @@ function GestureRecognizer:ExecuteGesture(stick, direction, magnitude)
 
 	if ns.HapticFeedback then
 		ns.HapticFeedback:Trigger("gesture", math.min(magnitude * 0.3, 0.4))
+	end
+
+	-- Registrar como gesto para AdaptiveUI
+	if ns.AdaptiveUI then
+		ns.AdaptiveUI:RecordAction(key, true)
 	end
 end
 

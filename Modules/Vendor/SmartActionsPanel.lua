@@ -218,6 +218,9 @@ end
 -- ============================================================================
 
 function SmartActionsPanel:LoadDetectedCart(cart)
+	if ns.AdaptiveUI then
+		ns.AdaptiveUI:RecordCartLoad()
+	end
 	self:ExecuteCart(cart.items)
 end
 
