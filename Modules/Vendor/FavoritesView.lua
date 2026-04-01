@@ -521,7 +521,7 @@ function FavoritesView:PopulateCard(card, fav, dbIndex, vendorMap, atVendor)
 
 	-- Pin button: enabled only when valid coordinates are stored
 	local loc = vi and vi.location
-	local hasPinData = loc and loc.mapID and loc.mapID > 0 and (loc.x > 0 or loc.y > 0)
+	local hasPinData = loc and loc.mapID and loc.mapID > 0
 	card.pinButton:SetEnabled(hasPinData or false)
 
 	if hasPinData then
