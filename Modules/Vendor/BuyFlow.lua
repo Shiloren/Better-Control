@@ -204,6 +204,19 @@ end
 function BuyFlow:SetItem(item)
 	self.item = item
 	self:ResetValueForItem()
+
+	-- Auto-suggest quantity from pattern if enabled
+	if item and ns.DB and ns.DB.insightSettings and ns.DB.insightSettings.autoSuggestQuantity then
+		local suggestion = ns.QuantityAnalyzer and ns.QuantityAnalyzer:GetSuggestedQuantity(item.itemID)
+		if suggestion and suggestion.quantity > 0 then
+			if self.quantityMode == "total" then
+				self.value = self:GetOwned() + suggestion.quantity
+			else
+				self.value = suggestion.quantity
+			end
+		end
+	end
+
 	self:Refresh()
 end
 
@@ -241,7 +254,7 @@ function BuyFlow:RefreshCostsOnly()
 
 	local resolved = self:GetResolvedPurchaseQuantity()
 	local affordable = Utils.GetAffordableQuantity(item)
-	self.purchaseHint:SetText(string.format("Will buy %d now. Max immediate batch %d.", resolved, affordable))
+	self.purchaseHint:SetText(string.format("Will buy %d now. Max %d.", resolved, affordable))
 	self.costs:SetText(string.format("Purchase cost: |cffffffff%s|r", Utils.DescribeCosts(item, resolved)))
 end
 
@@ -356,8 +369,21 @@ function BuyFlow:Refresh()
 		self.quickPlus:SetEnabled(false)
 		self.quickPlusFive:SetEnabled(false)
 		self.quickMax:SetEnabled(false)
+
+		-- Show smart actions panel when nothing selected
+		if self.smartActions then
+			self.smartActions:Refresh()
+			self.smartActions:Show()
+			self.panel:Hide()
+		end
 		return
 	end
+
+	-- Hide smart actions, show buy panel
+	if self.smartActions then
+		self.smartActions:Hide()
+	end
+	self.panel:Show()
 
 	local owned = self:GetOwned()
 	local affordable = Utils.GetAffordableQuantity(item)
@@ -378,7 +404,28 @@ function BuyFlow:Refresh()
 
 	self.title:SetText(item.name)
 	self.icon:SetTexture(item.icon or 134400)
-	self.summary:SetText(string.format("%s: %d\n%s: %d\n%s: %s", L.OWNED, owned, L.BUNDLE, item.unitSize, L.PRICE, Utils.DescribeCosts(item, item.unitSize)))
+
+	self.summary:SetText(string.format("%s: %d\n%s: %d\n%s: %s",
+		L.OWNED, owned, L.BUNDLE, item.unitSize, L.PRICE, Utils.DescribeCosts(item, item.unitSize)))
+
+	-- Insight hints shown in purchaseHint area (below mode buttons, layout-safe)
+	-- Priority: restock warning > quantity pattern > default text
+	local insightPrefix = ""
+	if ns.DB and ns.DB.insightSettings then
+		if ns.DB.insightSettings.showRestockWarnings then
+			local restock = ns.ConsumptionEstimator and ns.ConsumptionEstimator:GetRestockMessage(item.itemID)
+			if restock then
+				local color = restock.severity == "high" and "|cffff4444" or "|cffff9900"
+				insightPrefix = string.format("%s%s|r\n", color, restock.message)
+			end
+		end
+		if insightPrefix == "" and ns.DB.insightSettings.autoSuggestQuantity then
+			local qSuggest = ns.QuantityAnalyzer and ns.QuantityAnalyzer:GetSuggestedQuantity(item.itemID)
+			if qSuggest then
+				insightPrefix = string.format("|cff00ccff%s|r\n", qSuggest.message)
+			end
+		end
+	end
 	
 	if isMouse then
 		if not self.valueEdit:HasFocus() then
@@ -388,7 +435,7 @@ function BuyFlow:Refresh()
 		self.valueText:SetText(BreakUpLargeNumbers(self.value))
 	end
 
-	self.purchaseHint:SetText(string.format("Will buy %d now. Max immediate batch %d.", resolved, affordable))
+	self.purchaseHint:SetText(insightPrefix .. string.format("Will buy %d now. Max %d.", resolved, affordable))
 	self.costs:SetText(string.format("Purchase cost: |cffffffff%s|r", Utils.DescribeCosts(item, resolved)))
 end
 

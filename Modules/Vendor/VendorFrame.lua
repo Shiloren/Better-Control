@@ -8,7 +8,7 @@ local Input = ns.InputAdapter
 local Controller = {}
 ns.VendorFrame = Controller
 
-local TAB_ORDER = { "main", "buyback" }
+local TAB_ORDER = { "main", "buyback", "favorites" }
 
 local function ResolveTabLabel(tabId)
 	if tabId == "main" then
@@ -21,6 +21,8 @@ local function ResolveTabLabel(tabId)
 		return (MerchantFrameTab2 and MerchantFrameTab2:GetText()) or _G.BUYBACK or L.BUYBACK or "Buyback"
 	elseif tabId == "repair" then
 		return _G.REPAIR or L.REPAIR or "Repair"
+	elseif tabId == "favorites" then
+		return "Favorites"
 	end
 	return "Tab"
 end
@@ -34,18 +36,42 @@ function Controller:OnSlashCommand(msg)
 		self:ShowWindow()
 	elseif msg == "hide" or msg == "close" then
 		self:Close("slash")
+	elseif msg == "load" then
+		-- Load the contextual cart suggested on vendor open
+		if self._suggestedCart then
+			local smartActions = self.views and self.views.buyFlow and self.views.buyFlow.smartActions
+			if smartActions then
+				smartActions:LoadDetectedCart(self._suggestedCart)
+				print(string.format("|cff00ccff[Better Control]|r Loading cart: '%s'", self._suggestedCart.name))
+			else
+				print("|cffff6600[Better Control]|r Smart actions not available. Open a vendor first.")
+			end
+		else
+			print("|cffff6600[Better Control]|r No cart suggestion available. Open a vendor to get one.")
+		end
 	end
 end
 
 function Controller:OnEvent(event, ...)
 	if event == "MERCHANT_SHOW" then
 		ns.Debug("Event: MERCHANT_SHOW. Initializing UI...")
+
+		-- Start telemetry session
+		local vendorName = UnitName and UnitName("target") or "Vendor"
+		if ns.Telemetry then ns.Telemetry:StartSession(vendorName) end
+
 		self:ShowWindow()
 		-- Small delay to let items load
 		ns.JobScheduler:Schedule(0.1, function()
 			self:RefreshActiveView()
+			-- Auto-popup suggestion after items are loaded
+			ns.JobScheduler:Schedule(0.5, function()
+				self:CheckAutoPopup()
+			end)
 		end)
 	elseif event == "MERCHANT_CLOSED" then
+		-- Finalize telemetry session before closing
+		if ns.Telemetry then ns.Telemetry:FinalizeSession() end
 		self:Close("MERCHANT_CLOSED")
 	elseif event == "MERCHANT_UPDATE" then
 		self:RefreshActiveView()
@@ -290,26 +316,37 @@ function Controller:CreateFrame()
 	end)
 
 	-- Safe creation of views using Mixins into deterministic regions
+	self.views = {}
 	xpcall(function()
 		-- Catalog View hosts the Merchant Item List
 		self.views.catalog = ns.VendorCatalogView:New(frame.regions.catalog, self, 4, true)
-		
+
 		-- BuyFlow hosts the Details and Purchase Flow for Merchant Items
 		self.views.buyFlow = ns.VendorBuyFlow:New(frame.regions.buyFlow, self, true)
-		
+
+		-- SmartActionsPanel embedded inside the buyFlow region (shown when no item selected)
+		if ns.VendorSmartActionsPanel then
+			self.views.buyFlow.smartActions = ns.VendorSmartActionsPanel:New(frame.regions.buyFlow, self)
+		end
+
 		-- SellView split across two regions: List and Detail
 		self.views.sell = ns.VendorSellView:New(frame.regions.sellList, self, 4, true, frame.regions.sellDetail)
-		
+
 		-- Full Screen Views (Tabs) - Still direct in content as they own the space when active
 		self.views.buyback = ns.VendorBuybackView:New(frame.content, self, math.floor(434/tokens.list.rowHeight))
 		self.views.repair = ns.VendorRepairView:New(frame.content, self)
-		
+
+		-- Favorites tab: full-screen card view with vendor availability and map pins
+		if ns.VendorFavoritesView then
+			self.views.favorites = ns.VendorFavoritesView:New(frame.content, self)
+		end
+
 		-- Initial setup: Ensure all embeddable parts follow their region's constraints
 		self.views.catalog:SetAllPoints()
 		self.views.buyFlow:SetAllPoints()
 		self.views.sell:SetAllPoints() -- Host frame handles cross-communication
-	end, function(err) 
-		ns.Debug("CRITICAL ERROR during View Creation: " .. tostring(err)) 
+	end, function(err)
+		ns.Debug("CRITICAL ERROR during View Creation: " .. tostring(err))
 	end)
 
 	Input:Attach(frame, function(action)
@@ -347,6 +384,7 @@ function Controller:SetTab(tabId)
 		for _, region in pairs(self.frame.regions) do region:Show() end
 		self.views.buyback:Hide()
 		self.views.repair:Hide()
+		if self.views.favorites then self.views.favorites:Hide() end
 	else
 		self.frame.headerActions:Hide()
 		-- Hide all regions before showing a whole-frame tab
@@ -354,9 +392,15 @@ function Controller:SetTab(tabId)
 		if tabId == "buyback" then
 			self.views.buyback:Show()
 			self.views.repair:Hide()
-		elseif tabId == "repair" then -- Handled by separate view if direct nav is used
+			if self.views.favorites then self.views.favorites:Hide() end
+		elseif tabId == "repair" then
 			self.views.buyback:Hide()
 			self.views.repair:Show()
+			if self.views.favorites then self.views.favorites:Hide() end
+		elseif tabId == "favorites" then
+			self.views.buyback:Hide()
+			self.views.repair:Hide()
+			if self.views.favorites then self.views.favorites:Show() end
 		end
 	end
 
@@ -373,6 +417,56 @@ function Controller:RefreshActiveView()
 		if self.views.buyFlow then self.views.buyFlow:Refresh() end
 	elseif self.activeTab == "buyback" then
 		if self.views.buyback then self.views.buyback:Refresh() end
+	elseif self.activeTab == "favorites" then
+		if self.views.favorites then self.views.favorites:Refresh() end
+	end
+end
+
+-- Auto-popup: suggest contextual cart when vendor opens (Fase 5)
+function Controller:CheckAutoPopup()
+	if not ns.DB then return end
+	local settings = ns.DB.insightSettings
+	if not (settings and settings.enabled and settings.showAutoPopup) then return end
+	if not ns.CartRecognizer then return end
+
+	local d = date("*t", time())
+	local weekday = d.wday - 1
+	local hour = d.hour
+
+	local contextCarts = ns.CartRecognizer:GetCartsByContext(weekday, hour)
+	if not contextCarts or #contextCarts == 0 then return end
+
+	local bestCart = contextCarts[1]
+	-- Only suggest if used at least twice to avoid noise
+	if (bestCart.occurrences or 0) < 2 then return end
+
+	-- Build item preview text (first 3 items)
+	local preview = {}
+	for i = 1, math.min(3, #bestCart.items) do
+		local item = bestCart.items[i]
+		table.insert(preview, string.format("• %s x%d", item.itemName or "?", item.typicalQuantity or 1))
+	end
+	if #bestCart.items > 3 then
+		table.insert(preview, string.format("  ...and %d more", #bestCart.items - 3))
+	end
+
+	local msg = string.format(
+		"|cff00ccff[Better Control]|r Recognized your usual cart: |cffffff00'%s'|r (used %dx)\n%s\n|cffffff00Type /bcv load to use it.|r",
+		bestCart.name, bestCart.occurrences, table.concat(preview, "\n")
+	)
+
+	-- Store suggestion for optional load command
+	self._suggestedCart = bestCart
+
+	print(" ")
+	print(msg)
+	print(" ")
+
+	-- Also show in the smart actions panel status if visible
+	if self.views and self.views.buyFlow and self.views.buyFlow.smartActions then
+		self.views.buyFlow.smartActions.statusLine:SetText(
+			string.format("Suggestion: '%s' (%dx)", bestCart.name, bestCart.occurrences)
+		)
 	end
 end
 

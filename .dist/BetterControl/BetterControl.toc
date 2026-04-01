@@ -14,10 +14,16 @@ Core\FocusList.lua
 Core\SkinTokens.lua
 Core\FrameFactory.lua
 Core\JobScheduler.lua
+Core\Telemetry.lua
+Core\QuantityPatternAnalyzer.lua
+Core\CartPatternRecognizer.lua
+Core\ConsumptionEstimator.lua
 Modules\Vendor\PurchaseQueue.lua
 Modules\Vendor\CatalogView.lua
 Modules\Vendor\BuyFlow.lua
 Modules\Vendor\SellView.lua
 Modules\Vendor\BuybackView.lua
 Modules\Vendor\RepairView.lua
+Modules\Vendor\SmartActionsPanel.lua
+Modules\Vendor\FavoritesView.lua
 Modules\Vendor\VendorFrame.lua

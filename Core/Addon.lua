@@ -52,6 +52,16 @@ ns.DEFAULTS = {
 		allyBackRightKey = nil,
 		quickAmounts = { 1, "bundle", "max" },
 	},
+	insightSettings = {
+		enabled = true,
+		autoSuggestQuantity = true,
+		showCartSuggestions = true,
+		showRestockWarnings = true,
+		showAutoPopup = true,
+		minOccurrencesForPattern = 3,
+		maxHistoryItems = 1000,
+		analysisDebounce = 2,
+	},
 }
 
 function ns.RegisterModule(name, module)
@@ -251,6 +261,50 @@ SlashCmdList.BETTERCONTROL = function(message)
 			print("|cffffff00Usa /bcv setup para habilitarlo.|r")
 		end
 		return
+	elseif cmd == "stats" then
+		local db = ns.DB
+		if not db then print("|cffff0000[Better Control]|r DB not loaded.") return end
+		local tel = db.telemetry or {}
+		local hist = db.purchaseHistory or {}
+		local patterns = db.quantityPatterns or {}
+		local carts = db.detectedCarts or {}
+		print(" ")
+		print("|cff00ccff[Better Control]|r Purchase Statistics:")
+		print(string.format("  Sessions recorded:  |cffffff00%d|r", tel.totalPurchases or 0))
+		print(string.format("  Total items bought: |cffffff00%d|r", tel.totalItemsBought or 0))
+		print(string.format("  Total gold spent:   |cffffff00%s|r", ns.FrameFactory and ns.FrameFactory.FormatMoney and ns.FrameFactory.FormatMoney(tel.totalGoldSpent or 0) or tostring(tel.totalGoldSpent or 0)))
+		print(string.format("  History entries:    |cffffff00%d|r", #hist))
+		print(string.format("  Detected patterns:  |cffffff00%d|r", (function() local c=0; for _ in pairs(patterns) do c=c+1 end; return c end)()))
+		print(string.format("  Detected carts:     |cffffff00%d|r", #carts))
+		print(string.format("  Vendor opens:       |cffffff00%d|r", tel.vendorOpenCount or 0))
+		print(" ")
+		return
+	elseif cmd == "insights" then
+		local db = ns.DB
+		if not db then print("|cffff0000[Better Control]|r DB not loaded.") return end
+		local patterns = db.quantityPatterns or {}
+		local carts = db.detectedCarts or {}
+		local rates = db.consumptionRates or {}
+		print(" ")
+		print("|cff00ccff[Better Control]|r Insights Debug:")
+		print("|cffffff00Quantity Patterns:|r")
+		for itemId, p in pairs(patterns) do
+			print(string.format("  [%d] %s: typical=%d conf=%.0f%% days=%.1f",
+				itemId, p.itemName or "?", math.floor(p.typical or 0),
+				(p.confidence or 0) * 100, p.avgDaysBetween or 0))
+		end
+		print("|cffffff00Detected Carts:|r")
+		for _, c in ipairs(carts) do
+			print(string.format("  '%s' (%dx, %d items)", c.name or "?", c.occurrences or 0, #(c.items or {})))
+		end
+		print("|cffffff00Restock Alerts:|r")
+		for itemId, r in pairs(rates) do
+			if r.needsRestock then
+				print(string.format("  [%d] %s: est. ~%.0f remaining", itemId, r.itemName or "?", r.estimatedRemaining or 0))
+			end
+		end
+		print(" ")
+		return
 	elseif cmd == "help" or cmd == "?" then
 		print(" ")
 		print("|cff00ccff[Better Control]|r Comandos disponibles:")
@@ -258,6 +312,8 @@ SlashCmdList.BETTERCONTROL = function(message)
 		print("  |cffffff00/bcv hide|r - Cerrar ventana de vendor")
 		print("  |cffffff00/bcv setup|r - Configurar gamepad automáticamente")
 		print("  |cffffff00/bcv check|r - Ver estado de gamepad")
+		print("  |cffffff00/bcv stats|r - Ver estadísticas de compra")
+		print("  |cffffff00/bcv insights|r - Debug de patrones detectados")
 		print("  |cffffff00/bcv help|r - Mostrar esta ayuda")
 		print(" ")
 		return
@@ -281,6 +337,10 @@ addon:SetScript("OnEvent", function(_, event, ...)
 
 		BetterControlDB = copyDefaults(ns.DEFAULTS, BetterControlDB or {})
 		ns.DB = BetterControlDB
+
+		-- Initialize insight systems
+		if ns.Telemetry then ns.Telemetry:Init() end
+
 		ns.Debug("ADDON_LOADED: Dispatching modules")
 		dispatch("OnAddonLoaded")
 		return
