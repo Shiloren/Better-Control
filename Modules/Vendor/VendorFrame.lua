@@ -497,49 +497,80 @@ function Controller:RequestPurchase(item, quantity)
 end
 
 function Controller:HandleInput(action)
+	-- ── Resolver conflicto RadialMenu vs "select" (PADBACK) ──────────────────
+	-- Si RadialMenu está en proceso de hold o ya abierto, PADBACK no debe
+	-- disparar el toggle de lista. El radial lo consume.
+	if action == "select" then
+		local rm = ns.RadialMenu
+		if rm and (rm.holdStartTime > 0 or rm.isOpen) then
+			return true  -- consumido por RadialMenu
+		end
+	end
+
+	-- ── Resolver conflicto BatchOverlay vs pageDown/pageUp (PADLTRIGGER/PADRTRIGGER) ─
+	-- Cuando el overlay batch está visible, los triggers ya fueron interceptados
+	-- por BatchOverlay; no hay que procesarlos como scrolling.
+	if (action == "pageDown" or action == "pageUp") then
+		if ns.BatchOverlay and ns.BatchOverlay.currentOverlay then
+			return true  -- consumido por BatchOverlay
+		end
+	end
+
+	local handled = false
+
 	if self.activeTab == "main" then
 		-- Use 'select' (TAB or View button) to toggle focus between Buy Catalog and Sell List
 		if action == "select" then
 			self.activeList = (self.activeList == "sell") and "catalog" or "sell"
 			ns.Debug("Active List focus switched to: " .. self.activeList)
-			return true
+			handled = true
 		end
 
-		local targetList = (self.activeList == "sell") and self.views.sell or self.views.catalog
-		if targetList and targetList.HandleAction and targetList:HandleAction(action) then
-			return true
+		if not handled then
+			local targetList = (self.activeList == "sell") and self.views.sell or self.views.catalog
+			if targetList and targetList.HandleAction and targetList:HandleAction(action) then
+				handled = true
+			end
 		end
 
 		-- If the active list didn't handle the action (e.g. quantity adjust, quick confirm, max)
 		-- give the relevant detail panel a chance to handle it.
-		if self.activeList == "catalog" and self.views.buyFlow and self.views.buyFlow.HandleAction then
-			if self.views.buyFlow:HandleAction(action) then
-				return true
-			end
-		elseif self.activeList == "sell" and self.views.sell and self.views.sell.HandleAction then
-			-- Logic for sell actions (handled inside SellView detail part)
-			if self.views.sell:HandleAction(action) then
-				return true
+		if not handled then
+			if self.activeList == "catalog" and self.views.buyFlow and self.views.buyFlow.HandleAction then
+				if self.views.buyFlow:HandleAction(action) then
+					handled = true
+				end
+			elseif self.activeList == "sell" and self.views.sell and self.views.sell.HandleAction then
+				if self.views.sell:HandleAction(action) then
+					handled = true
+				end
 			end
 		end
 	elseif self.activeTab == "buyback" then
 		if self.views.buyback and self.views.buyback.HandleAction and self.views.buyback:HandleAction(action) then
-			return true
+			handled = true
 		end
 	end
 
-	if action == "prevTab" then
-		self:CycleTab(-1)
-		return true
-	elseif action == "nextTab" then
-		self:CycleTab(1)
-		return true
-	elseif action == "cancel" then
-		self:Close("escape")
-		return true
+	if not handled then
+		if action == "prevTab" then
+			self:CycleTab(-1)
+			handled = true
+		elseif action == "nextTab" then
+			self:CycleTab(1)
+			handled = true
+		elseif action == "cancel" then
+			self:Close("escape")
+			handled = true
+		end
 	end
 
-	return false
+	-- ── Registrar acción para AdaptiveUI ─────────────────────────────────────
+	if handled and ns.AdaptiveUI then
+		ns.AdaptiveUI:RecordAction(action, false)
+	end
+
+	return handled
 end
 
 function Controller:CycleTab(delta)

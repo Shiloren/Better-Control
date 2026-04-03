@@ -297,6 +297,11 @@ function Queue:Complete()
 		ns.Telemetry:TrackItemPurchase(self.job.item, self.job.purchasedQty)
 	end
 
+	-- Registrar compra manual para AdaptiveUI (si no fue via carrito)
+	if ns.AdaptiveUI then
+		ns.AdaptiveUI:RecordManualPurchase()
+	end
+
 	self.job.state = "complete"
 	self.job.status = string.format("Completed %d x %s", self.job.purchasedQty, ns.GetItemDisplayName(self.job.item))
 	self.job.awaiting = nil
@@ -410,6 +415,13 @@ function Queue:MarkSuccess(quantity)
 	job.state = "running"
 	job.status = string.format("Purchased %d / %d", job.purchasedQty, job.targetQty)
 	self:Notify()
+
+	-- Registrar gasto en BudgetManager
+	if ns.BudgetManager and job.item and (job.item.price or 0) > 0 then
+		local unitSize = math.max(1, job.item.unitSize or 1)
+		local cost = math.floor(job.item.price * quantity / unitSize)
+		ns.BudgetManager:RecordSpend(cost)
+	end
 
 	if job.remainingQty <= 0 then
 		self:Complete()
